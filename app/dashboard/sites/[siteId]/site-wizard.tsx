@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ApertureMark } from "@/components/aperture/aperture";
 import { IntegrationGuide } from "@/components/integration-guide";
 import { markStepComplete } from "./setup-actions";
+import { track } from "@/lib/analytics/gtag";
 import { BannerCustomizer } from "./banner-customizer";
 import { ContactForm } from "./contact/contact-form";
 import { DataItemsEditor } from "./data/data-items-editor";
@@ -50,7 +51,11 @@ export function SiteWizard(props: WizardData) {
     setDone(nextDone);
     // Open the next not-yet-done step (or collapse when everything's done).
     setOpen(order.find((s) => !nextDone[s.key])?.key ?? null);
-    await markStepComplete(siteId, step);
+    const res = await markStepComplete(siteId, step);
+    if (res.ok) {
+      track("setup_step_completed", { step, site_id: siteId });
+      if (order.every((s) => nextDone[s.key])) track("setup_completed", { site_id: siteId });
+    }
   }
 
   function toggle(step: SetupStepKey) {

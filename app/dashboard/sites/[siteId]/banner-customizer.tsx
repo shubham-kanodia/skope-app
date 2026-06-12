@@ -6,6 +6,7 @@ import { FieldHint } from "@/components/ui/field-hint";
 import { Callout } from "@/components/ui/callout";
 import { DEFAULT_PURPOSES, DEFAULT_BANNER_SETTINGS, type BannerSettings, type BannerLayout, type CfgDataItem } from "@/lib/banner/settings";
 import { saveBannerSettings, previewTranslate } from "./actions";
+import { track } from "@/lib/analytics/gtag";
 
 const COPY_FIELDS = new Set<keyof BannerSettings>([
   "heading",
@@ -73,6 +74,10 @@ export function BannerCustomizer({
       const res = await previewTranslate(siteId, settings);
       if (res.translations) {
         setSettings((s) => ({ ...s, translations: res.translations, translationsHash: res.translationsHash }));
+        track("banner_preview_translated", {
+          translate_chars: res.costs?.translateChars ?? 0,
+          translate_languages: res.costs?.translatedLanguages ?? 0,
+        });
       } else if (res.error) {
         setStatus(res.error);
       }
@@ -94,6 +99,12 @@ export function BannerCustomizer({
       if (res.banner) setSettings(res.banner); // sync newly-cached translations into the preview
       if (res.ok) {
         setStatus(res.warning ?? "Saved and translated. Live on your site within a minute.");
+        track("banner_saved", {
+          layout: settings.layout,
+          languages_count: settings.languages.length,
+          translate_chars: res.costs?.translateChars ?? 0,
+          translate_languages: res.costs?.translatedLanguages ?? 0,
+        });
         onSaved?.();
       } else {
         setStatus(res.error ?? "Something went wrong.");

@@ -16,6 +16,8 @@ export interface SaveBannerResult {
   warning?: string;
   /** The persisted banner, including any newly-cached translations. */
   banner?: BannerSettings;
+  /** Google Translate usage this call, so the client can report it to analytics. */
+  costs?: { translateChars: number; translatedLanguages: number };
 }
 
 export async function saveBannerSettings(
@@ -43,9 +45,12 @@ export async function saveBannerSettings(
 
   // Auto-translate the selected languages, translating only what's new or stale.
   let warning: string | undefined;
+  let costs: SaveBannerResult["costs"];
   try {
-    const { translations, translationsHash } = await ensureTranslations(banner);
+    const { translations, translationsHash, translated, charsTranslated } =
+      await ensureTranslations(banner);
     banner = { ...banner, translations, translationsHash };
+    costs = { translateChars: charsTranslated, translatedLanguages: translated.length };
   } catch (err) {
     console.error("[banner] auto-translate skipped", err);
     warning = "Saved, but auto-translate is unavailable right now. Other languages will fall back to your default text.";
@@ -63,7 +68,7 @@ export async function saveBannerSettings(
   }
 
   revalidatePath(`/dashboard/sites/${siteId}`);
-  return { ok: true, warning, banner };
+  return { ok: true, warning, banner, costs };
 }
 
 export interface SaveContactResult {
@@ -108,6 +113,8 @@ export interface PreviewTranslateResult {
   translations?: Record<string, BannerCopy>;
   translationsHash?: string;
   error?: string;
+  /** Google Translate usage this call, so the client can report it to analytics. */
+  costs?: { translateChars: number; translatedLanguages: number };
 }
 
 /**
@@ -122,8 +129,13 @@ export async function previewTranslate(siteId: string, raw: unknown): Promise<Pr
 
   const banner = mergeBannerSettings(raw);
   try {
-    const { translations, translationsHash } = await ensureTranslations(banner);
-    return { translations, translationsHash };
+    const { translations, translationsHash, translated, charsTranslated } =
+      await ensureTranslations(banner);
+    return {
+      translations,
+      translationsHash,
+      costs: { translateChars: charsTranslated, translatedLanguages: translated.length },
+    };
   } catch (err) {
     console.error("[banner] preview translate failed", err);
     return { error: "Auto-translate is unavailable right now." };

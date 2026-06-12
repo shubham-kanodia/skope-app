@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { track } from "@/lib/analytics/gtag";
 
 export function LoginForm({
   refCode = null,
@@ -31,6 +32,7 @@ export function LoginForm({
         return;
       }
       setState("sent");
+      track("login_link_requested", { has_ref: !!refCode, is_invite: !!fixedEmail });
     } catch {
       setState("error");
       setMessage("We couldn't reach the server. Check your connection and try again.");

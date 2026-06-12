@@ -21,14 +21,24 @@ export async function GET(request: Request) {
   }
   const { email, refCode } = consumed;
 
+  let isNew = false;
   try {
-    const { userId, orgId, role } = await findOrCreateUserByEmail(email, refCode);
-    await createSession({ userId, orgId, email, role });
+    const resolved = await findOrCreateUserByEmail(email, refCode);
+    isNew = resolved.isNew;
+    await createSession({
+      userId: resolved.userId,
+      orgId: resolved.orgId,
+      email,
+      role: resolved.role,
+    });
   } catch (err) {
     console.error("[auth/callback] failed to establish session", err);
     loginUrl.searchParams.set("error", "server");
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.redirect(new URL("/dashboard", url.origin));
+  // The dashboard reads this once for analytics (sign_up vs login), then strips it.
+  const dashboardUrl = new URL("/dashboard", url.origin);
+  dashboardUrl.searchParams.set("auth", isNew ? "signup" : "login");
+  return NextResponse.redirect(dashboardUrl);
 }

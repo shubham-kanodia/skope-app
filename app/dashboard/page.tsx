@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { requireSession } from "@/lib/auth/guard";
+import { AuthEvent } from "@/components/analytics/auth-event";
 import { listSitesForSetup } from "@/lib/orgs/queries";
 import { getSetupState, type SetupState } from "@/lib/sites/setup";
 import { isRecentlySeen } from "@/lib/sites/ping";
@@ -16,6 +18,9 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      <Suspense>
+        <AuthEvent />
+      </Suspense>
       <div>
         <h1 className="text-[2rem] leading-tight">Your sites</h1>
         <p className="mt-1 text-body">

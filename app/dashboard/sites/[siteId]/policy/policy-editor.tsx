@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Callout } from "@/components/ui/callout";
 import { generatePolicy, savePolicyDraft, publishPolicy } from "./actions";
+import { track } from "@/lib/analytics/gtag";
 import type { PolicyContent } from "@/lib/policy/types";
 import type { NoticeRow } from "@/lib/notices/store";
 
@@ -47,6 +48,11 @@ export function PolicyEditor({
       setContent(englishOf(res.notice));
       setSource(res.source ?? null);
       setTab("edit");
+      track("policy_generated", {
+        source: res.source ?? "template",
+        translate_chars: res.costs?.translateChars ?? 0,
+        translate_languages: res.costs?.translatedLanguages ?? 0,
+      });
     }
   }
 
@@ -58,6 +64,10 @@ export function PolicyEditor({
     setBusy(null);
     if (res.error) return setMessage(res.error);
     if (res.notice) setNotice(res.notice);
+    track("policy_draft_saved", {
+      translate_chars: res.costs?.translateChars ?? 0,
+      translate_languages: res.costs?.translatedLanguages ?? 0,
+    });
     setMessage("Draft saved.");
   }
 
@@ -73,6 +83,10 @@ export function PolicyEditor({
       setNotice(res.notice);
       setContent(englishOf(res.notice));
       setTab("edit");
+      track("policy_draft_saved", {
+        translate_chars: res.costs?.translateChars ?? 0,
+        translate_languages: res.costs?.translatedLanguages ?? 0,
+      });
     }
   }
 
@@ -86,6 +100,7 @@ export function PolicyEditor({
       setNotice(res.notice);
       setContent(englishOf(res.notice));
       setTab("preview");
+      track("policy_published", { version: res.notice.version });
     }
     setMessage("Published. Your notice is live.");
     onPublished?.();

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { grantPlan } from "@/app/dashboard/billing/actions";
+import { track } from "@/lib/analytics/gtag";
 import type { OrgPlan } from "@/lib/entitlement";
 
 export interface PlanCardData {
@@ -42,12 +43,14 @@ export function PlanCards({
         // Payments not live yet, owners can switch manually for now.
         if (isOwner) {
           const g = await grantPlan(plan);
+          if (!g.error) track("plan_granted", { plan });
           setNote(g.error ?? "Plan updated. Payments go live soon, no charge for now.");
         } else {
           setNote("Payments go live soon. Ask the owner to switch plans.");
         }
       } else {
         // configured: a real Razorpay order, the checkout widget would open here.
+        track("begin_checkout", { currency: "INR", value: data.amount / 100, plan });
         setNote("Opening checkout…");
       }
     } catch {

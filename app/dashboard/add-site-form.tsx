@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { addSite, type AddSiteState } from "./actions";
+import { track } from "@/lib/analytics/gtag";
 import { FieldHint } from "@/components/ui/field-hint";
 import { Tooltip } from "@/components/ui/tooltip";
 
@@ -9,6 +10,11 @@ const initial: AddSiteState = {};
 
 export function AddSiteForm() {
   const [state, formAction, pending] = useActionState(addSite, initial);
+
+  // Each submission returns a fresh state object, so this fires once per added site.
+  useEffect(() => {
+    if (state.ok) track("site_created", {});
+  }, [state]);
 
   return (
     <form action={formAction} className="rounded-3xl border border-hairline-soft bg-canvas p-6 shadow-card">

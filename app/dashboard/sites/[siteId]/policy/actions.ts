@@ -11,7 +11,7 @@ import { CATEGORY_LABELS } from "@/lib/data-items/types";
 import { generatePolicyDraft } from "@/lib/policy/generate";
 import { analyzeSite } from "@/lib/scan/analyze";
 import { coercePolicyContent, type PolicyInput } from "@/lib/policy/types";
-import { saveDraft, publishLatestDraft, buildContentI18n, type NoticeRow } from "@/lib/notices/store";
+import { saveDraft, publishLatestDraft, buildContentI18nTracked, type NoticeRow } from "@/lib/notices/store";
 import { guardWrite } from "@/lib/billing/gate";
 
 export interface PolicyActionResult {
@@ -20,6 +20,8 @@ export interface PolicyActionResult {
   notice?: NoticeRow;
   /** Where the draft text came from, surfaced to the user. */
   source?: "ai" | "template";
+  /** Google Translate usage this call, so the client can report it to analytics. */
+  costs?: { translateChars: number; translatedLanguages: number };
 }
 
 async function loadInput(siteId: string, orgId: string): Promise<{ input: PolicyInput; languages: string[] } | null> {
@@ -100,13 +102,14 @@ export async function generatePolicy(siteId: string): Promise<PolicyActionResult
 
   try {
     const { content, source } = await generatePolicyDraft(loaded.input);
-    const contentI18n = await buildContentI18n(content, loaded.languages);
+    const { contentI18n, translateChars, translatedLanguages } =
+      await buildContentI18nTracked(content, loaded.languages);
     const notice = await saveDraft(siteId, contentI18n);
     await sql`
       insert into audit_log (org_id, actor_user_id, action, target)
       values (${session.orgId}, ${session.userId}, 'policy.generated', ${siteId})`;
     revalidatePath(`/dashboard/sites/${siteId}/policy`);
-    return { ok: true, notice, source };
+    return { ok: true, notice, source, costs: { translateChars, translatedLanguages } };
   } catch (err) {
     console.error("[policy] generate action failed", err);
     return { error: "Couldn't generate the notice. Try again in a minute." };
@@ -126,10 +129,11 @@ export async function savePolicyDraft(siteId: string, rawEnglish: unknown): Prom
   if (!english) return { error: "The notice needs a title and at least one section." };
 
   try {
-    const contentI18n = await buildContentI18n(english, loaded.languages);
+    const { contentI18n, translateChars, translatedLanguages } =
+      await buildContentI18nTracked(english, loaded.languages);
     const notice = await saveDraft(siteId, contentI18n);
     revalidatePath(`/dashboard/sites/${siteId}/policy`);
-    return { ok: true, notice };
+    return { ok: true, notice, costs: { translateChars, translatedLanguages } };
   } catch (err) {
     console.error("[policy] save draft failed", err);
     return { error: "Couldn't save. Try again in a minute." };

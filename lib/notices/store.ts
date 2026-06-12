@@ -134,20 +134,41 @@ export async function translatePolicy(
  * Build the per-language content map: the English source plus a translation for
  * each other enabled language. Translation failures degrade gracefully, the
  * language falls back to the English source rather than blocking the draft.
+ * Also reports Google Translate usage (source chars × languages actually sent,
+ * what Google bills) so callers can surface it to analytics.
  */
-export async function buildContentI18n(
+export async function buildContentI18nTracked(
   english: PolicyContent,
   languages: string[],
-): Promise<Record<string, PolicyContent>> {
+): Promise<{
+  contentI18n: Record<string, PolicyContent>;
+  translateChars: number;
+  translatedLanguages: number;
+}> {
   const sourceLang = languages[0] ?? "en";
+  const sourceChars =
+    english.title.length +
+    english.intro.length +
+    english.sections.reduce((n, s) => n + s.heading.length + s.body.length, 0);
   const out: Record<string, PolicyContent> = { [sourceLang]: english };
+  let translateChars = 0;
+  let translatedLanguages = 0;
   for (const lang of languages.slice(1)) {
     try {
       out[lang] = await translatePolicy(english, lang, sourceLang);
+      translateChars += sourceChars;
+      translatedLanguages += 1;
     } catch (err) {
       console.error(`[notices] translate to ${lang} failed, using source`, err);
       out[lang] = english;
     }
   }
-  return out;
+  return { contentI18n: out, translateChars, translatedLanguages };
+}
+
+export async function buildContentI18n(
+  english: PolicyContent,
+  languages: string[],
+): Promise<Record<string, PolicyContent>> {
+  return (await buildContentI18nTracked(english, languages)).contentI18n;
 }

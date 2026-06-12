@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { track } from "@/lib/analytics/gtag";
 
 interface VerifyResult {
   live: boolean;
@@ -55,7 +56,11 @@ export function VerifyInstall({
         return;
       }
       setResult(data as VerifyResult);
-      if ((data as VerifyResult).live) onVerified?.();
+      if ((data as VerifyResult).live) {
+        const r = data as VerifyResult;
+        track("install_verified", { source: r.source, domain_match: r.domainMatch !== false });
+        onVerified?.();
+      }
     } catch {
       setNetError("Network error. Try again.");
     } finally {

@@ -8,6 +8,7 @@ import { DATA_ITEM_CATEGORIES, CATEGORY_LABELS, slugifyKey } from "@/lib/data-it
 import type { DataItem, DataItemCategory } from "@/lib/data-items/types";
 import { DATA_ITEM_PRESETS } from "@/lib/data-items/presets";
 import { saveDataItems } from "./actions";
+import { track } from "@/lib/analytics/gtag";
 
 interface Row {
   rowId: number;
@@ -290,6 +291,7 @@ function ScreenshotPanel({
     }
     setState("reading");
     setMessage(null);
+    const fileKb = Math.round(file.size / 1024);
     const body = new FormData();
     body.set("image", file);
     body.set("siteId", siteId);
@@ -297,10 +299,12 @@ function ScreenshotPanel({
       const res = await fetch("/api/dashboard/data-items/extract", { method: "POST", body });
       const data = (await res.json()) as { items?: SuggestedItem[]; error?: string };
       if (!res.ok || !data.items || data.items.length === 0) {
+        if (!res.ok) track("data_extract_failed", { status: res.status, file_kb: fileKb });
         setState("error");
         setMessage(data.error ?? "Couldn't read the screenshot. Add items manually below.");
         return;
       }
+      track("data_extract_completed", { items_count: data.items.length, file_kb: fileKb });
       setSuggestions(data.items.map((i) => ({ ...i, checked: true })));
       setState("review");
     } catch {
