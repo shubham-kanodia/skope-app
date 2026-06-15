@@ -5,6 +5,7 @@ import { getPublicSiteByKey } from "@/lib/sites/by-key";
 import { getLatestPublishedNotice } from "@/lib/notices/store";
 import { contactFromSettings } from "@/lib/contact/settings";
 import { PublicShell, Prose } from "@/components/public/public-shell";
+import { LanguageSwitcher } from "./language-switcher";
 
 export const metadata: Metadata = {
   title: "Privacy notice",
@@ -36,7 +37,10 @@ export default async function PrivacyPage({
 
   return (
     <PublicShell orgName={site.orgName} domain={site.domain}>
-      <p className="text-sm text-muted">Privacy notice</p>
+      <div className="flex items-start justify-between gap-4">
+        <p className="text-sm text-muted">Privacy notice</p>
+        <LanguageSwitcher siteKey={siteKey} current={language} available={Object.keys(notice.contentI18n)} />
+      </div>
       <h1 className="mt-1 text-[2rem] leading-tight">{content.title}</h1>
       {notice.publishedAt && (
         <p className="mt-1 text-sm text-muted">Last updated {when.format(new Date(notice.publishedAt))} (IST)</p>
