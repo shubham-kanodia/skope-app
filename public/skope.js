@@ -426,7 +426,8 @@
 
   function langSwitcher(b) {
     if (!b.showLangSwitcher || b.languages.length < 2) return "";
-    var names = { en: "English", hi: "हिन्दी", ta: "தமிழ்", te: "తెలుగు", bn: "বাংলা", mr: "मराठी", kn: "ಕನ್ನಡ", ml: "മലയാളം", gu: "ગુજરાતી", pa: "ਪੰਜਾਬੀ" };
+    // English + the 22 Eighth Schedule languages (keep in sync with lib/banner/languages.ts).
+    var names = { en: "English", hi: "हिन्दी", bn: "বাংলা", mr: "मराठी", te: "తెలుగు", ta: "தமிழ்", gu: "ગુજરાતી", ur: "اردو", kn: "ಕನ್ನಡ", or: "ଓଡ଼ିଆ", ml: "മലയാളം", pa: "ਪੰਜਾਬੀ", as: "অসমীয়া", mai: "मैथिली", sat: "ᱥᱟᱱᱛᱟᱲᱤ", ks: "کٲشُر", ne: "नेपाली", sd: "سنڌي", gom: "कोंकणी", doi: "डोगरी", "mni-Mtei": "ꯃꯤꯇꯩ ꯂꯣꯟ", brx: "बर'", sa: "संस्कृतम्" };
     var opts = b.languages
       .map(function (l) {
         return '<option value="' + l + '"' + (l === stateLang ? " selected" : "") + ">" + (names[l] || l) + "</option>";

@@ -22,6 +22,8 @@ SITE SETUP WIZARD, open a site from Sites; five steps, in order:
 4. "Add your contact": legal entity name, grievance officer (name + email required, DPDP requires a working grievance contact), optional DPO, and the response window in days (default 30) which sets the due-date clock on rights requests.
 5. "Publish your privacy notice": generate a draft from the site's real settings (purposes, trackers found, declared data items, contacts), edit it, publish. Published versions are immutable and checksummed; publishing a new version makes returning visitors re-consent. The public notice lives at /p/<siteKey>/privacy in every enabled language.
 
+Finishing these five steps gets the site live ("your essentials are live"); it is the baseline, not the whole of DPDP. Below the wizard, a "Go further" section on the site page holds the settings that cover the rest of your duties, set the ones that apply: Data retention (inactivity window), Children's data (child mode), Who you share data with (recipients register), and Exemptions you rely on. Skope does not claim a site is fully "compliant", it gives you the tools and an audit trail.
+
 PURPOSES: a fixed set today, "Strictly necessary" (always on, no consent needed), "Analytics", and "Marketing". Visitors choose per purpose in the banner's manage view.
 
 PREFERENCE CENTRE (hosted, no code): /p/<siteKey>/preferences. Visitors verify by email OTP, then view and change consent, withdraw (one tap, as easy as granting, that's the law), or file a rights request.

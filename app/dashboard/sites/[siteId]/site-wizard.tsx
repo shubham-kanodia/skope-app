@@ -153,7 +153,7 @@ function ProgressHeader({
   allComplete: boolean;
 }) {
   const headline = allComplete
-    ? "You're compliance-ready."
+    ? "Your essentials are live."
     : doneCount === 0
       ? "Let's get you set up."
       : "Nice progress, keep going.";
@@ -227,10 +227,11 @@ function CompletionPanel() {
         <div className="mx-auto w-fit">
           <ApertureMark tone="dark" size={64} />
         </div>
-        <h2 className="mt-5 text-2xl text-white">You&apos;re compliance-ready</h2>
+        <h2 className="mt-5 text-2xl text-white">Your essentials are live</h2>
         <p className="mx-auto mt-2 max-w-md text-on-dark-soft">
           Your banner is live, trackers stay blocked until consent, your privacy notice is published,
-          and every choice is recorded as a tamper-evident receipt.
+          and every choice is recorded as a tamper-evident receipt. A few more settings below cover
+          the rest of your DPDP duties.
         </p>
       </div>
 

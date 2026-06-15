@@ -3,6 +3,8 @@
  * returned by /api/cfg/:siteKey, consumed by skope.js and the dashboard preview.
  * One source of truth so the preview matches what visitors actually see.
  */
+import { MAX_LANGUAGES, isSupportedLanguage } from "./languages";
+
 export type BannerLayout = "bar" | "modal" | "corner";
 
 /** The translatable copy of the banner (the source lives on BannerSettings). */
@@ -65,8 +67,9 @@ export function mergeBannerSettings(raw: unknown): BannerSettings {
   const accent = typeof r.accent === "string" && HEX_RE.test(r.accent) ? r.accent : d.accent;
   const languages =
     Array.isArray(r.languages) && r.languages.every((l) => typeof l === "string") && r.languages.length > 0
-      ? (r.languages as string[]).slice(0, 22)
+      ? (r.languages as string[]).filter(isSupportedLanguage).slice(0, MAX_LANGUAGES)
       : d.languages;
+  const safeLanguages = languages.length > 0 ? languages : d.languages;
 
   // Validate translations: keep only well-formed per-language copy objects.
   let translations: Record<string, BannerCopy> | undefined;
@@ -102,7 +105,7 @@ export function mergeBannerSettings(raw: unknown): BannerSettings {
     showLangSwitcher: typeof r.showLangSwitcher === "boolean" ? r.showLangSwitcher : d.showLangSwitcher,
     showPreferencesButton:
       typeof r.showPreferencesButton === "boolean" ? r.showPreferencesButton : d.showPreferencesButton,
-    languages,
+    languages: safeLanguages,
     ...(translations ? { translations } : {}),
     ...(typeof r.translationsHash === "string" ? { translationsHash: r.translationsHash.slice(0, 64) } : {}),
   };

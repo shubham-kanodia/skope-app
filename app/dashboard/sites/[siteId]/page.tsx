@@ -56,6 +56,14 @@ export default async function SitePage({ params }: { params: Promise<{ siteId: s
         initial={setup}
       />
 
+      <div className="border-t border-hairline pt-8">
+        <h2 className="text-xl text-ink">Go further</h2>
+        <p className="mt-1 max-w-2xl text-sm text-body">
+          The steps above get you live. These settings tailor your site to the rest of your DPDP
+          duties. Set the ones that apply to you, you can come back to them any time.
+        </p>
+      </div>
+
       <RetentionSettingsEditor siteId={site.id} initial={retentionFromSettings(site.settings)} />
 
       <ChildrenSettingsEditor siteId={site.id} initial={childrenFromSettings(site.settings)} />

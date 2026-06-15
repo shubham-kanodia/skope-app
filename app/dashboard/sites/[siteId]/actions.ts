@@ -6,6 +6,7 @@ import { sql } from "@/lib/db/client";
 import { getSiteForOrg } from "@/lib/orgs/queries";
 import { mergeBannerSettings, type BannerSettings, type BannerCopy } from "@/lib/banner/settings";
 import { ensureTranslations } from "@/lib/banner/translate";
+import { LANGUAGES } from "@/lib/banner/languages";
 import { mergeContactSettings, hasGrievanceContact, type ContactSettings } from "@/lib/contact/settings";
 import { getOrgGate, blockedReason, guardWrite } from "@/lib/billing/gate";
 import { writeAudit } from "@/lib/audit/write";
@@ -51,10 +52,11 @@ export async function saveBannerSettings(
   let warning: string | undefined;
   let costs: SaveBannerResult["costs"];
   try {
-    const { translations, translationsHash, translated, charsTranslated } =
+    const { translations, translationsHash, translated, failed, charsTranslated } =
       await ensureTranslations(banner);
     banner = { ...banner, translations, translationsHash };
     costs = { translateChars: charsTranslated, translatedLanguages: translated.length };
+    warning = translateWarning(failed);
   } catch (err) {
     console.error("[banner] auto-translate skipped", err);
     warning = "Saved, but auto-translate is unavailable right now. Other languages will fall back to your default text.";
@@ -206,8 +208,20 @@ export interface PreviewTranslateResult {
   translations?: Record<string, BannerCopy>;
   translationsHash?: string;
   error?: string;
+  /** Non-fatal note when some languages couldn't be translated. */
+  warning?: string;
   /** Google Translate usage this call, so the client can report it to analytics. */
   costs?: { translateChars: number; translatedLanguages: number };
+}
+
+/** A human note naming the languages that couldn't be auto-translated, or undefined. */
+function translateWarning(failed: string[]): string | undefined {
+  if (failed.length === 0) return undefined;
+  const names = failed.map((c) => LANGUAGES.find((l) => l.code === c)?.english ?? c);
+  const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0];
+  return `Saved, but we couldn't auto-translate ${list} right now. ${
+    failed.length > 1 ? "Those languages" : "That language"
+  } will show your default text until the next save. You can also edit the copy by hand in the preview.`;
 }
 
 /**
@@ -222,11 +236,12 @@ export async function previewTranslate(siteId: string, raw: unknown): Promise<Pr
 
   const banner = mergeBannerSettings(raw);
   try {
-    const { translations, translationsHash, translated, charsTranslated } =
+    const { translations, translationsHash, translated, failed, charsTranslated } =
       await ensureTranslations(banner);
     return {
       translations,
       translationsHash,
+      warning: translateWarning(failed),
       costs: { translateChars: charsTranslated, translatedLanguages: translated.length },
     };
   } catch (err) {

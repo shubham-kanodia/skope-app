@@ -5,6 +5,7 @@ import { BannerPreview } from "@/components/banner-preview";
 import { FieldHint } from "@/components/ui/field-hint";
 import { Callout } from "@/components/ui/callout";
 import { DEFAULT_PURPOSES, DEFAULT_BANNER_SETTINGS, type BannerSettings, type BannerLayout, type CfgDataItem } from "@/lib/banner/settings";
+import { LANGUAGES as LANGS, languageLabel } from "@/lib/banner/languages";
 import { saveBannerSettings, previewTranslate } from "./actions";
 import { track } from "@/lib/analytics/gtag";
 
@@ -20,15 +21,6 @@ const LAYOUTS: { id: BannerLayout; label: string }[] = [
   { id: "bar", label: "Bottom bar" },
   { id: "modal", label: "Center modal" },
   { id: "corner", label: "Corner card" },
-];
-
-const LANGS: { code: string; label: string }[] = [
-  { code: "en", label: "English" },
-  { code: "hi", label: "हिन्दी" },
-  { code: "ta", label: "தமிழ்" },
-  { code: "te", label: "తెలుగు" },
-  { code: "bn", label: "বাংলা" },
-  { code: "mr", label: "मराठी" },
 ];
 
 export function BannerCustomizer({
@@ -78,6 +70,7 @@ export function BannerCustomizer({
           translate_chars: res.costs?.translateChars ?? 0,
           translate_languages: res.costs?.translatedLanguages ?? 0,
         });
+        if (res.warning) setStatus(res.warning);
       } else if (res.error) {
         setStatus(res.error);
       }
@@ -251,7 +244,7 @@ export function BannerCustomizer({
               >
                 {settings.languages.map((l) => (
                   <option key={l} value={l}>
-                    {LANGS.find((x) => x.code === l)?.label ?? l}
+                    {languageLabel(l)}
                   </option>
                 ))}
               </select>
