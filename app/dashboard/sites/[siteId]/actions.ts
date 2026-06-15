@@ -8,11 +8,15 @@ import { mergeBannerSettings, type BannerSettings, type BannerCopy } from "@/lib
 import { ensureTranslations } from "@/lib/banner/translate";
 import { mergeContactSettings, hasGrievanceContact, type ContactSettings } from "@/lib/contact/settings";
 import { getOrgGate, blockedReason, guardWrite } from "@/lib/billing/gate";
+import { writeAudit } from "@/lib/audit/write";
+import { mergeRetentionSettings, type RetentionSettings } from "@/lib/retention/settings";
+import { mergeChildrenSettings, type ChildrenSettings } from "@/lib/children/settings";
+import { mergeExemptionSettings, type ExemptionSettings } from "@/lib/exemptions/settings";
 
 export interface SaveBannerResult {
   ok?: boolean;
   error?: string;
-  /** Non-fatal note (e.g. translation skipped) — the banner still saved. */
+  /** Non-fatal note (e.g. translation skipped), the banner still saved. */
   warning?: string;
   /** The persisted banner, including any newly-cached translations. */
   banner?: BannerSettings;
@@ -59,9 +63,7 @@ export async function saveBannerSettings(
   const settings = JSON.parse(JSON.stringify({ ...site.settings, banner }));
   try {
     await sql`update sites set settings = ${sql.json(settings)} where id = ${siteId} and org_id = ${session.orgId}`;
-    await sql`
-      insert into audit_log (org_id, actor_user_id, action, target)
-      values (${session.orgId}, ${session.userId}, 'banner.updated', ${siteId})`;
+    await writeAudit({ orgId: session.orgId, actorUserId: session.userId, action: "banner.updated", target: siteId });
   } catch (err) {
     console.error("[banner] save failed", err);
     return { error: "Couldn't save. Try again in a minute." };
@@ -97,9 +99,7 @@ export async function saveContactSettings(
   const settings = JSON.parse(JSON.stringify({ ...site.settings, contact }));
   try {
     await sql`update sites set settings = ${sql.json(settings)} where id = ${siteId} and org_id = ${session.orgId}`;
-    await sql`
-      insert into audit_log (org_id, actor_user_id, action, target)
-      values (${session.orgId}, ${session.userId}, 'contact.updated', ${siteId})`;
+    await writeAudit({ orgId: session.orgId, actorUserId: session.userId, action: "contact.updated", target: siteId });
   } catch (err) {
     console.error("[contact] save failed", err);
     return { error: "Couldn't save. Try again in a minute." };
@@ -107,6 +107,99 @@ export async function saveContactSettings(
 
   revalidatePath(`/dashboard/sites/${siteId}/contact`);
   return { ok: true, contact };
+}
+
+export interface SaveRetentionResult {
+  ok?: boolean;
+  error?: string;
+  retention?: RetentionSettings;
+}
+
+/**
+ * Persist the §8(8) inactivity window into sites.settings.retention. The
+ * retention sweep reads this to decide when a purpose is "no longer served".
+ */
+export async function saveRetentionSettings(siteId: string, raw: unknown): Promise<SaveRetentionResult> {
+  const session = await requireSession();
+  const site = await getSiteForOrg(siteId, session.orgId);
+  if (!site) return { error: "Site not found." };
+
+  const blocked = await guardWrite(session);
+  if (blocked) return { error: blocked };
+
+  const retention = mergeRetentionSettings(raw);
+  const settings = JSON.parse(JSON.stringify({ ...site.settings, retention }));
+  try {
+    await sql`update sites set settings = ${sql.json(settings)} where id = ${siteId} and org_id = ${session.orgId}`;
+    await writeAudit({ orgId: session.orgId, actorUserId: session.userId, action: "retention.updated", target: siteId });
+  } catch (err) {
+    console.error("[retention] save failed", err);
+    return { error: "Couldn't save. Try again in a minute." };
+  }
+
+  revalidatePath(`/dashboard/sites/${siteId}`);
+  return { ok: true, retention };
+}
+
+export interface SaveChildrenResult {
+  ok?: boolean;
+  error?: string;
+  children?: ChildrenSettings;
+}
+
+/**
+ * Persist children's-data settings (DPDP §9) into sites.settings.children.
+ * Drives the banner age gate + child mode and the notice's children section.
+ */
+export async function saveChildrenSettings(siteId: string, raw: unknown): Promise<SaveChildrenResult> {
+  const session = await requireSession();
+  const site = await getSiteForOrg(siteId, session.orgId);
+  if (!site) return { error: "Site not found." };
+
+  const blocked = await guardWrite(session);
+  if (blocked) return { error: blocked };
+
+  const children = mergeChildrenSettings(raw);
+  const settings = JSON.parse(JSON.stringify({ ...site.settings, children }));
+  try {
+    await sql`update sites set settings = ${sql.json(settings)} where id = ${siteId} and org_id = ${session.orgId}`;
+    await writeAudit({ orgId: session.orgId, actorUserId: session.userId, action: "children.updated", target: siteId });
+  } catch (err) {
+    console.error("[children] save failed", err);
+    return { error: "Couldn't save. Try again in a minute." };
+  }
+
+  revalidatePath(`/dashboard/sites/${siteId}`);
+  return { ok: true, children };
+}
+
+export interface SaveExemptionsResult {
+  ok?: boolean;
+  error?: string;
+  exemptions?: ExemptionSettings;
+}
+
+/** Persist recorded §17 / §9(4) exemption grounds into sites.settings.exemptions. */
+export async function saveExemptionSettings(siteId: string, raw: unknown): Promise<SaveExemptionsResult> {
+  const session = await requireSession();
+  const site = await getSiteForOrg(siteId, session.orgId);
+  if (!site) return { error: "Site not found." };
+
+  const blocked = await guardWrite(session);
+  if (blocked) return { error: blocked };
+
+  const exemptions = mergeExemptionSettings(raw);
+  const settings = JSON.parse(JSON.stringify({ ...site.settings, exemptions }));
+  try {
+    await sql`update sites set settings = ${sql.json(settings)} where id = ${siteId} and org_id = ${session.orgId}`;
+    await writeAudit({ orgId: session.orgId, actorUserId: session.userId, action: "exemptions.updated", target: siteId });
+  } catch (err) {
+    console.error("[exemptions] save failed", err);
+    return { error: "Couldn't save. Try again in a minute." };
+  }
+
+  revalidatePath(`/dashboard/sites/${siteId}`);
+  return { ok: true, exemptions };
 }
 
 export interface PreviewTranslateResult {
@@ -119,7 +212,7 @@ export interface PreviewTranslateResult {
 
 /**
  * Translate the current (possibly unsaved) banner copy into every selected
- * language for the live preview. Does NOT persist — Save writes the final copy
+ * language for the live preview. Does NOT persist, Save writes the final copy
  * + translations atomically. Cached by source hash, so this is cheap to call.
  */
 export async function previewTranslate(siteId: string, raw: unknown): Promise<PreviewTranslateResult> {

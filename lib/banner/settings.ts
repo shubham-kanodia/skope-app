@@ -35,7 +35,7 @@ export function copyForLang(b: BannerSettings, lang: string): BannerCopy {
 
 // NOTE: This is a DPDP-aware default template, not legal advice. [HUMAN] Have
 // counsel review the notice copy (and the per-purpose descriptions below) before
-// launch — see the implementation plan's legal-review checklist.
+// launch, see the implementation plan's legal-review checklist.
 export const DEFAULT_BANNER_SETTINGS: BannerSettings = {
   layout: "bar",
   accent: "#0052ff",

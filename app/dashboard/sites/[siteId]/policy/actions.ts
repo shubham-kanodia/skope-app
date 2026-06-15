@@ -6,6 +6,8 @@ import { sql } from "@/lib/db/client";
 import { getOrg, getSiteForOrg } from "@/lib/orgs/queries";
 import { mergeBannerSettings, DEFAULT_PURPOSES } from "@/lib/banner/settings";
 import { contactFromSettings } from "@/lib/contact/settings";
+import { childrenFromSettings } from "@/lib/children/settings";
+import { listRecipients } from "@/lib/recipients/store";
 import { listDataItems } from "@/lib/data-items/store";
 import { CATEGORY_LABELS } from "@/lib/data-items/types";
 import { generatePolicyDraft } from "@/lib/policy/generate";
@@ -13,6 +15,7 @@ import { analyzeSite } from "@/lib/scan/analyze";
 import { coercePolicyContent, type PolicyInput } from "@/lib/policy/types";
 import { saveDraft, publishLatestDraft, buildContentI18nTracked, type NoticeRow } from "@/lib/notices/store";
 import { guardWrite } from "@/lib/billing/gate";
+import { writeAudit } from "@/lib/audit/write";
 
 export interface PolicyActionResult {
   ok?: boolean;
@@ -30,6 +33,7 @@ async function loadInput(siteId: string, orgId: string): Promise<{ input: Policy
   const org = await getOrg(orgId);
   const banner = mergeBannerSettings((site.settings as { banner?: unknown }).banner);
   const contact = contactFromSettings(site.settings);
+  const children = childrenFromSettings(site.settings);
 
   // Trackers: live-scan the homepage so the notice lists what's actually loaded,
   // merged with anything already recorded in the trackers table. The scan is
@@ -87,6 +91,17 @@ async function loadInput(siteId: string, orgId: string): Promise<{ input: Policy
     dpoName: contact.dpoName,
     dpoEmail: contact.dpoEmail,
     responseDays: contact.responseDays,
+    children: {
+      directedAtChildren: children.directedAtChildren,
+      childMode: children.childMode,
+      exemptClass: children.exemptClass,
+    },
+    recipients: (await listRecipients(siteId)).map((r) => ({
+      name: r.name,
+      role: r.role,
+      purpose: r.purpose,
+      country: r.country,
+    })),
   };
   return { input, languages: banner.languages };
 }
@@ -105,9 +120,7 @@ export async function generatePolicy(siteId: string): Promise<PolicyActionResult
     const { contentI18n, translateChars, translatedLanguages } =
       await buildContentI18nTracked(content, loaded.languages);
     const notice = await saveDraft(siteId, contentI18n);
-    await sql`
-      insert into audit_log (org_id, actor_user_id, action, target)
-      values (${session.orgId}, ${session.userId}, 'policy.generated', ${siteId})`;
+    await writeAudit({ orgId: session.orgId, actorUserId: session.userId, action: "policy.generated", target: siteId });
     revalidatePath(`/dashboard/sites/${siteId}/policy`);
     return { ok: true, notice, source, costs: { translateChars, translatedLanguages } };
   } catch (err) {
@@ -152,9 +165,7 @@ export async function publishPolicy(siteId: string): Promise<PolicyActionResult>
   try {
     const notice = await publishLatestDraft(siteId);
     if (!notice) return { error: "There's no draft to publish. Generate one first." };
-    await sql`
-      insert into audit_log (org_id, actor_user_id, action, target)
-      values (${session.orgId}, ${session.userId}, 'policy.published', ${siteId})`;
+    await writeAudit({ orgId: session.orgId, actorUserId: session.userId, action: "policy.published", target: siteId });
     revalidatePath(`/dashboard/sites/${siteId}/policy`);
     return { ok: true, notice };
   } catch (err) {

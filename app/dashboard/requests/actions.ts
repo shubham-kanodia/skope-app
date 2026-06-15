@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/auth/guard";
-import { updateRequestStatus, type RequestStatus } from "@/lib/requests/store";
+import { updateRequestStatus, setRequestFrivolous, type RequestStatus } from "@/lib/requests/store";
 import { sendEmail } from "@/lib/email/send";
 
 const STATUSES = new Set<RequestStatus>(["new", "in_progress", "done", "rejected"]);
@@ -41,6 +41,15 @@ export async function updateRequest(
     }
   }
 
+  revalidatePath("/dashboard/requests");
+  return { ok: true };
+}
+
+/** Flag or clear a grievance as false/frivolous (DPDP §15). */
+export async function markFrivolous(requestId: string, frivolous: boolean): Promise<UpdateRequestResult> {
+  const session = await requireSession();
+  const ok = await setRequestFrivolous(session.orgId, requestId, frivolous);
+  if (!ok) return { error: "Request not found." };
   revalidatePath("/dashboard/requests");
   return { ok: true };
 }

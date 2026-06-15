@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { sql } from "@/lib/db/client";
 import { getEntitlement, type Entitlement, type OrgEntitlementInput } from "@/lib/entitlement";
+import { writeAudit } from "@/lib/audit/write";
 
 export interface Org extends OrgEntitlementInput {
   id: string;
@@ -99,9 +100,7 @@ export async function createSite(
       insert into sites (org_id, domain, site_key)
       values (${orgId}, ${domain}, ${siteKey})
       returning id, domain, site_key, status, geo_mode, created_at`;
-    await tx`
-      insert into audit_log (org_id, actor_user_id, action, target)
-      values (${orgId}, ${actorUserId}, 'site.created', ${domain})`;
+    await writeAudit({ orgId, actorUserId, action: "site.created", target: domain }, tx);
     return rows[0] as unknown as Site;
   });
 }

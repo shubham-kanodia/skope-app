@@ -1,6 +1,7 @@
 import { coercePolicyContent, type PolicyContent, type PolicyInput } from "./types";
 import { sanitizePolicyContent } from "./sanitize";
 import { templatePolicy } from "./template";
+import { DPB_COMPLAINT_CHANNEL } from "./dpb-channel";
 
 /**
  * Draft a DPDP privacy notice. Uses OpenRouter's OpenAI-compatible chat
@@ -91,19 +92,19 @@ You MUST return ONLY a JSON object, no prose around it, with this exact shape:
   "sections": [ { "heading": string, "body": string }, ... ]
 }
 
-FORMATTING — section bodies are rendered as PLAIN TEXT, never markdown:
+FORMATTING, section bodies are rendered as PLAIN TEXT, never markdown:
 - No markdown of any kind: no asterisks, no **bold**, no # headings, no [links], no tables. Markdown characters appear literally on the page and look broken.
 - A list is consecutive lines each starting with "- " (dash, space). Nothing else.
 - Separate paragraphs with one blank line.
-- List items are ONE line each, compact. Do not expand an item into sub-fields like "What it is:" / "Purpose:" / "Retention:" — fold the facts you were given into the single line and stop.
+- List items are ONE line each, compact. Do not expand an item into sub-fields like "What it is:" / "Purpose:" / "Retention:", fold the facts you were given into the single line and stop.
 - State only facts provided by the user. If a retention period or source was not given for an item, leave it out of that line; never fill the gap with generic wording like "as long as necessary to fulfil the purpose".
 
 Example of a correct data list:
-- Email address — to contact you (collected at the signup form, kept about 365 days)
-- PAN — for identity verification (collected at the KYC form)
+- Email address, to contact you (collected at the signup form, kept about 365 days)
+- PAN, for identity verification (collected at the KYC form)
 
 Example of a correct tracker list:
-- Google Analytics 4 (analytics) — blocked until you consent
+- Google Analytics 4 (analytics), blocked until you consent
 
 Cover at least these sections, using the facts provided by the user (do not invent purposes, trackers, retention periods, or contact details, and where a contact detail is missing write "[HUMAN: add ...]"):
 1. Who we are (the Data Fiduciary)
@@ -116,7 +117,7 @@ Cover at least these sections, using the facts provided by the user (do not inve
 8. Children's data (no processing of under-18 data without verifiable parental consent; no tracking or targeted ads to children)
 9. Changes to this notice
 
-Do not number the section headings — write them as plain titles like "Who we are". Keep each body to a few short paragraphs.`;
+Do not number the section headings, write them as plain titles like "Who we are". Keep each body to a few short paragraphs.`;
 
 function userPrompt(input: PolicyInput): string {
   const purposes = input.purposes
@@ -156,5 +157,20 @@ function userPrompt(input: PolicyInput): string {
     `Data Protection Officer:`,
     `- Name: ${input.dpoName || "[none]"}`,
     `- Email: ${input.dpoEmail || "[none]"}`,
+    ``,
+    `Recipients we share data with (DPDP §11(1)(b)), include a "Who we share your data with" section listing these, and an "International transfers" section if any are outside India (§16):`,
+    input.recipients.length
+      ? input.recipients
+          .map((r) => `- ${r.name} (${r.role}${r.country ? `, ${r.country}` : ""})${r.purpose ? `, ${r.purpose}` : ""}`)
+          .join("\n")
+      : `- [none declared]`,
+    ``,
+    `Complaint to the Data Protection Board, include a concrete "Complaints to the Data Protection Board" section using this channel: ${DPB_COMPLAINT_CHANNEL.url} (${DPB_COMPLAINT_CHANNEL.text})`,
+    ``,
+    `Children's data (DPDP §9):`,
+    `- Directed at or likely used by children (under 18): ${input.children.directedAtChildren ? "yes" : "no"}`,
+    `- Child mode (age signal + verifiable parental consent before processing a child's data): ${input.children.childMode === "age_gate" ? "on" : "off"}`,
+    `- Exemption relied on: ${input.children.exemptClass || "[none]"}`,
+    `  In the children's-data section, reflect this exactly. If child mode is on or the service is used by children, state that an age signal and verifiable parental/guardian consent are obtained, and that non-essential tracking, behavioural monitoring, and targeted advertising are not used for children even with consent. Otherwise state the service is not directed at children.`,
   ].join("\n");
 }

@@ -60,8 +60,8 @@ export function ContactForm({
         <div>
           <h2 className="text-lg text-ink">Grievance officer</h2>
           <p className="mt-1 text-sm text-body">
-            DPDP §13 requires a readily-available way for people to raise a grievance about how you
-            handle their data. This contact is published on your privacy notice.
+            People need an easy way to raise a complaint about how you handle their data, and a person
+            to reach. This contact is published on your privacy notice.
           </p>
         </div>
 

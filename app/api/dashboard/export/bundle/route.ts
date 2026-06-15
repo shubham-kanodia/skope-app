@@ -1,16 +1,25 @@
 import { createHash } from "node:crypto";
-import { sql } from "@/lib/db/client";
 import { getSession } from "@/lib/auth/session";
 import { getOrgGate } from "@/lib/billing/gate";
-import { listSites } from "@/lib/orgs/queries";
+import { listSites, getSiteForOrg } from "@/lib/orgs/queries";
+import { exemptionsFromSettings } from "@/lib/exemptions/settings";
 import { listReceiptsForExport, type ExportCursor } from "@/lib/consent/list";
 import { listRequestsForExport } from "@/lib/requests/store";
+import { listIncidents, listNotifications } from "@/lib/breach/store";
+import { listObligations } from "@/lib/erasure/store";
+import { listParentalConsentsForOrg } from "@/lib/parental/store";
+import { listRecipientsForOrg } from "@/lib/recipients/store";
+import { listCessationForOrg } from "@/lib/cessation/store";
+import { getSdfSettings, listDpia, listAuditors, getAuditSchedule } from "@/lib/sdf/store";
+import { listDeliveryForOrg } from "@/lib/retro/store";
+import { listNominationsForExport } from "@/lib/nominations/store";
 import { listPublishedNotices } from "@/lib/notices/store";
 import { verifySiteChain, ledgerHead } from "@/lib/consent/verify";
 import { toCsvRow } from "@/lib/export/csv";
 import { ZipBuilder } from "@/lib/export/zip";
 import { buildSimplePdf, type PdfLine } from "@/lib/export/pdf";
 import { renderNoticeHtml } from "@/lib/export/notice-html";
+import { writeAudit } from "@/lib/audit/write";
 
 export const runtime = "nodejs";
 
@@ -20,7 +29,7 @@ const MAX_RECEIPTS_PER_SITE = 250_000;
 
 const RECEIPT_HEADER = [
   "occurred_at", "domain", "seq", "action", "method", "purposes_granted",
-  "purposes_denied", "notice_version", "language", "region", "row_hash",
+  "purposes_denied", "notice_version", "notice_checksum", "language", "region", "row_hash",
 ];
 
 /**
@@ -39,7 +48,7 @@ export async function GET(request: Request) {
   if (!gate) return Response.json({ error: "Organisation not found." }, { status: 404 });
   if (!gate.limits.auditExport) {
     return Response.json(
-      { error: "Audit bundles are on the Growth plan. Your consent data is always yours — CSV export stays available." },
+      { error: "Audit bundles are on the Growth plan. Your consent data is always yours, CSV export stays available." },
       { status: 403 },
     );
   }
@@ -49,9 +58,7 @@ export async function GET(request: Request) {
   if (wantedSite && wantedSite !== "all") sites = sites.filter((s) => s.id === wantedSite);
   if (sites.length === 0) return Response.json({ error: "Site not found." }, { status: 404 });
 
-  await sql`
-    insert into audit_log (org_id, actor_user_id, action, target)
-    values (${session.orgId}, ${session.userId}, 'export.bundle', ${wantedSite ?? "all"})`;
+  await writeAudit({ orgId: session.orgId, actorUserId: session.userId, action: "export.bundle", target: wantedSite ?? "all" });
 
   const zip = new ZipBuilder();
   const manifest: Record<string, string> = {};
@@ -91,7 +98,7 @@ export async function GET(request: Request) {
         csv += toCsvRow([
           new Date(r.occurred_at).toISOString(), r.domain, r.seq, r.action, r.method,
           (r.purposes_granted ?? []).join(" "), (r.purposes_denied ?? []).join(" "),
-          r.notice_version ?? "", r.language_shown ?? "", r.region ?? "", r.row_hash_hex,
+          r.notice_version ?? "", r.notice_checksum ?? "", r.language_shown ?? "", r.region ?? "", r.row_hash_hex,
         ]);
       }
       count += rows.length;
@@ -156,6 +163,144 @@ export async function GET(request: Request) {
   }
   addEntry("requests.csv", reqCsv);
 
+  // Breach register (DPDP §8(6)): org-wide, with a JSON record per incident that
+  // includes the notice snapshots actually sent.
+  const incidents = await listIncidents(session.orgId);
+  let breachCsv = toCsvRow([
+    "detected_at", "domain", "status", "nature", "data_categories", "est_affected",
+    "board_notified_at", "principals_notified_at", "remediation",
+  ]);
+  for (const b of incidents) {
+    breachCsv += toCsvRow([
+      new Date(b.detectedAt).toISOString(), b.domain ?? "", b.status, b.nature,
+      b.dataCategories.join(" "), b.estAffected ?? "",
+      b.boardNotifiedAt ? new Date(b.boardNotifiedAt).toISOString() : "",
+      b.principalsNotifiedAt ? new Date(b.principalsNotifiedAt).toISOString() : "",
+      b.remediation,
+    ]);
+    const notifications = await listNotifications(session.orgId, b.id);
+    addEntry(`breaches/${b.id}.json`, JSON.stringify({ incident: b, notifications }, null, 2));
+  }
+  if (incidents.length > 0) addEntry("breaches.csv", breachCsv);
+
+  // Erasure obligations (DPDP §8(7)-(8), §12(3)): the record that each erasure
+  // duty was tracked and actioned (or noted as not required, with a reason).
+  const obligations = await listObligations(session.orgId);
+  let erasureCsv = toCsvRow([
+    "created_at", "domain", "kind", "status", "subject_id", "source_action", "basis",
+    "due_at", "resolved_at", "resolution_note",
+  ]);
+  for (const o of obligations) {
+    erasureCsv += toCsvRow([
+      new Date(o.createdAt).toISOString(), o.domain, o.kind, o.status, o.subjectId ?? "",
+      o.sourceAction ?? "", o.basis ?? "", new Date(o.dueAt).toISOString(),
+      o.resolvedAt ? new Date(o.resolvedAt).toISOString() : "", o.resolutionNote ?? "",
+    ]);
+  }
+  if (obligations.length > 0) addEntry("erasure-obligations.csv", erasureCsv);
+
+  // Parental consents (DPDP §9): pseudonymous evidence that verifiable parental
+  // consent was captured. Guardian contact is deliberately omitted here.
+  const parental = await listParentalConsentsForOrg(session.orgId);
+  let parentalCsv = toCsvRow(["created_at", "domain", "subject_id", "method", "status", "verified_at"]);
+  for (const p of parental) {
+    parentalCsv += toCsvRow([
+      new Date(p.createdAt).toISOString(), p.domain, p.subjectId, p.method, p.status,
+      p.verifiedAt ? new Date(p.verifiedAt).toISOString() : "",
+    ]);
+  }
+  if (parental.length > 0) addEntry("parental-consents.csv", parentalCsv);
+
+  // Recipients register (DPDP §11(1)(b), §8(2), §16).
+  const recipients = await listRecipientsForOrg(session.orgId);
+  let recipientsCsv = toCsvRow([
+    "domain", "name", "role", "purpose", "data_shared", "country", "contract_ref", "contract_status",
+  ]);
+  for (const r of recipients) {
+    recipientsCsv += toCsvRow([
+      r.domain, r.name, r.role, r.purpose ?? "", r.dataItemKeys.join(" "), r.country ?? "",
+      r.contractRef ?? "", r.contractStatus ?? "",
+    ]);
+  }
+  if (recipients.length > 0) addEntry("recipients.csv", recipientsCsv);
+
+  // Processor-cease tasks (DPDP §6(6), §8(7)(b)): when cessation was effected.
+  const cessation = await listCessationForOrg(session.orgId);
+  let cessationCsv = toCsvRow(["obligation_id", "recipient", "status", "signalled_at", "ack_at", "note"]);
+  for (const c of cessation) {
+    cessationCsv += toCsvRow([
+      c.obligationId, c.recipientName, c.status,
+      c.signalledAt ? new Date(c.signalledAt).toISOString() : "",
+      c.ackAt ? new Date(c.ackAt).toISOString() : "", c.note ?? "",
+    ]);
+  }
+  if (cessation.length > 0) addEntry("cessation-tasks.csv", cessationCsv);
+
+  // SDF toolkit (DPDP §10): designation, DPIAs, auditor, audit cadence, only
+  // meaningful for SDF-designated orgs. Auditor contact omitted (PII).
+  const sdf = await getSdfSettings(session.orgId);
+  if (sdf.isSdf) {
+    const [dpias, auditors, schedule] = await Promise.all([
+      listDpia(session.orgId),
+      listAuditors(session.orgId),
+      getAuditSchedule(session.orgId),
+    ]);
+    addEntry(
+      "sdf/sdf.json",
+      JSON.stringify(
+        {
+          settings: { isSdf: sdf.isSdf, dpoIndiaBased: sdf.dpoIndiaBased, dpoName: sdf.dpoName, dpoEmail: sdf.dpoEmail },
+          dpias,
+          auditors: auditors.map((a) => ({ name: a.name, firm: a.firm, engagedAt: a.engagedAt })),
+          auditSchedule: schedule,
+        },
+        null,
+        2,
+      ),
+    );
+  }
+
+  // Retrospective §5(2) notice delivery log (no raw emails).
+  const retroDelivery = await listDeliveryForOrg(session.orgId);
+  let retroCsv = toCsvRow(["domain", "batch_id", "status", "sent_at", "error"]);
+  for (const d of retroDelivery) {
+    retroCsv += toCsvRow([d.domain, d.batchId, d.status, d.sentAt ? new Date(d.sentAt).toISOString() : "", d.error ?? ""]);
+  }
+  if (retroDelivery.length > 0) addEntry("retro-notice-delivery.csv", retroCsv);
+
+  // Nominations (DPDP §14), pseudonymous (nominee PII omitted).
+  const nominations = await listNominationsForExport(session.orgId);
+  let nominationsCsv = toCsvRow(["domain", "relationship", "status", "activated_at", "created_at"]);
+  for (const n of nominations) {
+    nominationsCsv += toCsvRow([
+      n.domain, n.relationship ?? "", n.status,
+      n.activatedAt ? new Date(n.activatedAt).toISOString() : "", new Date(n.createdAt).toISOString(),
+    ]);
+  }
+  if (nominations.length > 0) addEntry("nominations.csv", nominationsCsv);
+
+  // Recorded exemptions (DPDP §17, §9(4)) per site + a consent-mechanics
+  // conformity statement (§6(1)-(2)). Both are evidence/attestation, not data.
+  const exemptions: Record<string, { section17: string; section9: string }> = {};
+  for (const site of sites) {
+    const full = await getSiteForOrg(site.id, session.orgId);
+    if (!full) continue;
+    const ex = exemptionsFromSettings(full.settings);
+    if (ex.section17 || ex.section9) exemptions[site.domain] = ex;
+  }
+  addEntry(
+    "compliance-statements.json",
+    JSON.stringify(
+      {
+        consentMechanics:
+          "Non-essential purposes are opt-in and never pre-granted; 'Reject non-essential' is presented as prominently as 'Accept'; consent is not bundled with any waiver of rights (DPDP §6(1)-(2)). Verified by automated test e2e/consent-mechanics.spec.ts.",
+        exemptionsRelied: exemptions,
+      },
+      null,
+      2,
+    ),
+  );
+
   // Cover sheet last so it can summarise everything above.
   const cover: PdfLine[] = [
     { text: "Skope audit bundle", size: 20, bold: true },
@@ -170,7 +315,7 @@ export async function GET(request: Request) {
     cover.push(
       { text: "" },
       { text: s.domain, bold: true },
-      { text: `Receipts: ${s.count}${s.truncated ? ` (first ${MAX_RECEIPTS_PER_SITE} — full history via CSV export)` : ""}` },
+      { text: `Receipts: ${s.count}${s.truncated ? ` (first ${MAX_RECEIPTS_PER_SITE}, full history via CSV export)` : ""}` },
       { text: `Hash chain: ${s.ok ? "intact" : `BROKEN at seq ${s.brokenAt} (${s.reason ?? "unknown"})`}` },
       { text: `Head: seq ${s.headSeq}${s.headHash ? `, ${s.headHash.slice(0, 32)}...` : " (empty ledger)"}` },
       { text: `Independent verification: ${s.verifyUrl}` },
@@ -179,6 +324,13 @@ export async function GET(request: Request) {
   cover.push(
     { text: "" },
     { text: `Data-principal requests: ${requests.length} (requests.csv)` },
+    { text: `Breach incidents: ${incidents.length}${incidents.length > 0 ? " (breaches.csv + breaches/)" : ""}` },
+    { text: `Erasure obligations: ${obligations.length}${obligations.length > 0 ? " (erasure-obligations.csv)" : ""}` },
+    { text: `Parental consents: ${parental.length}${parental.length > 0 ? " (parental-consents.csv)" : ""}` },
+    { text: `Recipients: ${recipients.length}${recipients.length > 0 ? " (recipients.csv)" : ""}` },
+    { text: `Processor-cease tasks: ${cessation.length}${cessation.length > 0 ? " (cessation-tasks.csv)" : ""}` },
+    { text: `SDF designation: ${sdf.isSdf ? "yes (sdf/sdf.json)" : "no"}` },
+    { text: `Retrospective notice deliveries: ${retroDelivery.length}${retroDelivery.length > 0 ? " (retro-notice-delivery.csv)" : ""}` },
     { text: "" },
     { text: "Contents are listed with SHA-256 checksums in manifest.json.", size: 9 },
     { text: "requests.csv contains decrypted requester contacts. Treat as confidential.", size: 9 },

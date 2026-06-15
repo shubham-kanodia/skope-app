@@ -1,8 +1,7 @@
 import type { PolicyContent } from "@/lib/policy/types";
 
 /**
- * Standalone HTML render of a published notice version for the audit bundle —
- * a regulator can open it with no app running. Same paragraph-split convention
+ * Standalone HTML render of a published notice version for the audit bundle,  * a regulator can open it with no app running. Same paragraph-split convention
  * as the public privacy page (blank line = new paragraph).
  */
 export function renderNoticeHtml(content: PolicyContent, meta: {
@@ -27,7 +26,7 @@ export function renderNoticeHtml(content: PolicyContent, meta: {
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>${esc(content.title)} — ${esc(meta.domain)} (v${meta.version})</title>
+<title>${esc(content.title)}, ${esc(meta.domain)} (v${meta.version})</title>
 <style>
 body { font: 16px/1.6 system-ui, sans-serif; max-width: 68ch; margin: 3rem auto; padding: 0 1rem; color: #1a1d24; }
 h1 { font-size: 1.6rem; line-height: 1.2; }
@@ -36,7 +35,7 @@ h2 { font-size: 1.15rem; margin-top: 2rem; }
 </style>
 </head>
 <body>
-<p class="meta">Privacy notice for ${esc(meta.domain)} — version ${meta.version}${
+<p class="meta">Privacy notice for ${esc(meta.domain)}, version ${meta.version}${
     meta.publishedAt ? `, published ${esc(meta.publishedAt)}` : ""
   }${meta.checksum ? `<br>Checksum (SHA-256): ${esc(meta.checksum)}` : ""}</p>
 <h1>${esc(content.title)}</h1>

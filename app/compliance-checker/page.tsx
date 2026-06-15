@@ -4,7 +4,7 @@ import { Logo } from "@/components/ui/logo";
 import { ComplianceChecker } from "./checker";
 
 export const metadata: Metadata = {
-  title: "DPDP compliance checker — Skope",
+  title: "DPDP compliance checker, Skope",
   description:
     "Scan your website and see if it's ready for India's Digital Personal Data Protection Act. Free, in about a minute.",
   robots: { index: true, follow: true },

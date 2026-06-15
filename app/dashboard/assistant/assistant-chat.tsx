@@ -41,7 +41,7 @@ function readStoredMessages(): Message[] {
 }
 
 function ChatInner() {
-  // Conversations live in this tab only — nothing is stored server-side.
+  // Conversations live in this tab only, nothing is stored server-side.
   const [messages, setMessages] = useState<Message[]>(readStoredMessages);
   const [input, setInput] = useState("");
   const [state, setState] = useState<"idle" | "streaming" | "error">("idle");

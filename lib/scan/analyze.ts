@@ -133,7 +133,7 @@ export async function analyzeSite(domainOrUrl: string): Promise<ComplianceReport
         cookiesSetOnLoad === 0
           ? "No cookies were set before any interaction."
           : `${cookiesSetOnLoad} cookie${cookiesSetOnLoad > 1 ? "s were" : " was"} set on load${
-              consentBannerDetected ? " — verify non-essential cookies wait for consent." : ", before any consent."
+              consentBannerDetected ? ", verify non-essential cookies wait for consent." : ", before any consent."
             }`,
     },
   ];

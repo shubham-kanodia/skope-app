@@ -1,5 +1,6 @@
 import { sql } from "@/lib/db/client";
 import { newOrgEntitlement } from "@/lib/entitlement";
+import { writeAudit } from "@/lib/audit/write";
 import type { UserRole } from "@/lib/auth/session";
 import {
   generateReferralCode,
@@ -71,9 +72,7 @@ export async function findOrCreateUserByEmail(
         insert into users (org_id, email, role) values (${orgId}, ${email}, ${role}) returning id`;
       const userId = userRows[0].id as string;
       await tx`update org_invites set accepted_at = now() where id = ${invite[0].id}`;
-      await tx`
-        insert into audit_log (org_id, actor_user_id, action, target)
-        values (${orgId}, ${userId}, 'member.joined', ${email})`;
+      await writeAudit({ orgId, actorUserId: userId, action: "member.joined", target: email }, tx);
       return { userId, orgId, isNew: true, role } satisfies ResolvedUser;
     }
 
@@ -104,10 +103,16 @@ export async function findOrCreateUserByEmail(
       insert into users (org_id, email, role) values (${orgId}, ${email}, 'owner') returning id`;
     const userId = userRows[0].id as string;
 
-    await tx`
-      insert into audit_log (org_id, actor_user_id, action, target, diff)
-      values (${orgId}, ${userId}, 'org.created', ${orgId},
-              ${tx.json({ founding_number: ent.founding_number, is_founding_member: ent.is_founding_member })})`;
+    await writeAudit(
+      {
+        orgId,
+        actorUserId: userId,
+        action: "org.created",
+        target: orgId,
+        diff: { founding_number: ent.founding_number, is_founding_member: ent.is_founding_member },
+      },
+      tx,
+    );
 
     if (referrerId) {
       await recordReferral(tx, referrerId, orgId, REFERRAL_REFERRER_BONUS_DAYS);

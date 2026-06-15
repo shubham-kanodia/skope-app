@@ -1,14 +1,13 @@
-import { sql } from "@/lib/db/client";
 import { getSession } from "@/lib/auth/session";
 import { listRequestsForExport } from "@/lib/requests/store";
 import { toCsvRow } from "@/lib/export/csv";
+import { writeAudit } from "@/lib/audit/write";
 
 export const runtime = "nodejs";
 
 /**
  * CSV download of an org's data-principal requests. Contains decrypted
- * requester contacts — the fiduciary needs them to evidence their handling —
- * so the download itself is audit-logged and documented as confidential.
+ * requester contacts, the fiduciary needs them to evidence their handling,  * so the download itself is audit-logged and documented as confidential.
  */
 export async function GET(request: Request) {
   const session = await getSession();
@@ -17,9 +16,7 @@ export async function GET(request: Request) {
   }
   const siteId = new URL(request.url).searchParams.get("site") ?? undefined;
 
-  await sql`
-    insert into audit_log (org_id, actor_user_id, action, target)
-    values (${session.orgId}, ${session.userId}, 'export.requests', ${siteId ?? "all"})`;
+  await writeAudit({ orgId: session.orgId, actorUserId: session.userId, action: "export.requests", target: siteId ?? "all" });
 
   const rows = await listRequestsForExport(session.orgId, siteId);
   let csv = toCsvRow([

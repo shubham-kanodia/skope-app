@@ -45,6 +45,32 @@ describe("canonicalReceipt", () => {
     const b = canonicalReceipt(core(1, { purposesGranted: ["analytics", "necessary"] }));
     expect(a).toBe(b);
   });
+
+  // §6(10) hardening: notice checksum is bound only when present, so historical
+  // receipts (no checksum) must serialize exactly as before.
+  it("omits noticeChecksum when absent, null, or empty (back-compat)", () => {
+    const base = canonicalReceipt(core(1));
+    expect(canonicalReceipt(core(1, { noticeChecksum: null }))).toBe(base);
+    expect(canonicalReceipt(core(1, { noticeChecksum: undefined }))).toBe(base);
+    expect(canonicalReceipt(core(1, { noticeChecksum: "" }))).toBe(base);
+    expect(base).not.toContain("noticeChecksum");
+  });
+
+  it("binds noticeChecksum into the hash when present", () => {
+    const without = computeRowHash(null, core(1));
+    const withSum = computeRowHash(null, core(1, { noticeChecksum: "abc123" }));
+    expect(without.equals(withSum)).toBe(false);
+    expect(canonicalReceipt(core(1, { noticeChecksum: "abc123" }))).toContain("noticeChecksum");
+  });
+
+  it("keeps a pre-hardening row's hash stable (the back-catalogue still verifies)", () => {
+    // A row written before the checksum field existed.
+    const legacy = core(7, { noticeChecksum: undefined });
+    const legacyHash = computeRowHash(GENESIS_PREV_HASH, legacy);
+    // Re-reading it from the DB yields notice_checksum = null.
+    const reread = core(7, { noticeChecksum: null });
+    expect(computeRowHash(GENESIS_PREV_HASH, reread).equals(legacyHash)).toBe(true);
+  });
 });
 
 describe("computeRowHash", () => {

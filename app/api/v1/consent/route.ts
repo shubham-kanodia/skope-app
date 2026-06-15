@@ -66,6 +66,11 @@ export async function POST(request: Request) {
     body.noticeVersion == null ? null : Number.isInteger(body.noticeVersion) ? (body.noticeVersion as number) : null;
   const language = typeof body.language === "string" ? body.language.slice(0, 12) : null;
   const formId = typeof body.formId === "string" ? body.formId.slice(0, 128) : null;
+  // Checksum of the notice shown (DPDP §6(10)); hex sha-256, bounded.
+  const noticeChecksum =
+    typeof body.noticeChecksum === "string" && /^[0-9a-f]{8,128}$/i.test(body.noticeChecksum)
+      ? body.noticeChecksum.toLowerCase()
+      : null;
 
   // --- rate limit (per site + truncated IP) ---
   const ipTruncated = clientIpTruncated(request.headers);
@@ -93,6 +98,7 @@ export async function POST(request: Request) {
       purposesGranted,
       purposesDenied,
       noticeVersion,
+      noticeChecksum,
       language,
       region,
       method,

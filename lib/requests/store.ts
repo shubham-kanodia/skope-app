@@ -89,6 +89,8 @@ export interface RequestRow {
   resolutionNote: string | null;
   createdAt: string;
   domain: string;
+  /** §15: a grievance flagged as false/frivolous by staff. */
+  frivolous: boolean;
 }
 
 /**
@@ -118,7 +120,7 @@ async function decryptRequestRows(orgId: string, rows: Record<string, unknown>[]
         email = null;
       }
     }
-    const evidence = (r.evidence ?? {}) as { detailEnc?: string };
+    const evidence = (r.evidence ?? {}) as { detailEnc?: string; frivolous?: boolean };
     let detail = "";
     if (evidence.detailEnc) {
       try {
@@ -138,6 +140,7 @@ async function decryptRequestRows(orgId: string, rows: Record<string, unknown>[]
       resolutionNote: (r.resolution_note as string | null) ?? null,
       createdAt: r.created_at as string,
       domain: r.domain as string,
+      frivolous: evidence.frivolous === true,
     });
   }
   return out;
@@ -145,7 +148,7 @@ async function decryptRequestRows(orgId: string, rows: Record<string, unknown>[]
 
 /**
  * All verified requests for export (no row cap; the queue UI keeps its 200).
- * Decrypted like listRequestsForOrg — exports carry real contact details, the
+ * Decrypted like listRequestsForOrg, exports carry real contact details, the
  * fiduciary needs them to evidence their handling. Treat the file as
  * confidential (documented in SECURITY.md).
  */
@@ -192,6 +195,52 @@ export async function updateRequestStatus(
     }
   }
   return { email, domain: rows[0].domain as string, type: rows[0].type as RequestType };
+}
+
+/** Flag/unflag a grievance as frivolous (§15), preserving the rest of evidence. */
+export async function setRequestFrivolous(orgId: string, requestId: string, frivolous: boolean): Promise<boolean> {
+  const rows = await sql`
+    update requests r
+       set evidence = jsonb_set(coalesce(r.evidence, '{}'::jsonb), '{frivolous}', to_jsonb(${frivolous}))
+      from sites s
+     where r.id = ${requestId} and s.id = r.site_id and s.org_id = ${orgId}
+    returning r.id`;
+  return Boolean(rows[0]);
+}
+
+export interface RequestForOrg {
+  id: string;
+  siteId: string;
+  domain: string;
+  type: RequestType;
+  status: RequestStatus;
+  email: string | null;
+}
+
+/** A single request scoped to its org, with the requester email decrypted. */
+export async function getRequestForOrg(orgId: string, requestId: string): Promise<RequestForOrg | null> {
+  const rows = await sql`
+    select r.id, r.site_id, r.type, r.status, r.contact_enc, s.domain
+    from requests r join sites s on s.id = r.site_id
+    where s.org_id = ${orgId} and r.id = ${requestId} limit 1`;
+  if (!rows[0]) return null;
+  const r = rows[0] as Record<string, unknown>;
+  let email: string | null = null;
+  if (r.contact_enc) {
+    try {
+      email = await decryptField(orgId, toBuffer(r.contact_enc));
+    } catch {
+      email = null;
+    }
+  }
+  return {
+    id: r.id as string,
+    siteId: r.site_id as string,
+    domain: r.domain as string,
+    type: r.type as RequestType,
+    status: r.status as RequestStatus,
+    email,
+  };
 }
 
 function toBuffer(v: unknown): Buffer {

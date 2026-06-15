@@ -2,18 +2,18 @@
 
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/auth/guard";
-import { sql } from "@/lib/db/client";
 import { getSiteForOrg } from "@/lib/orgs/queries";
 import { guardWrite } from "@/lib/billing/gate";
 import { mergeBannerSettings } from "@/lib/banner/settings";
 import { coerceDataItems } from "@/lib/data-items/types";
 import { listDataItems, replaceDataItems } from "@/lib/data-items/store";
 import type { DataItem } from "@/lib/data-items/types";
+import { writeAudit } from "@/lib/audit/write";
 
 export interface SaveDataItemsResult {
   ok?: boolean;
   error?: string;
-  /** Non-fatal note (e.g. translation skipped) — the items still saved. */
+  /** Non-fatal note (e.g. translation skipped), the items still saved. */
   warning?: string;
   items?: DataItem[];
 }
@@ -33,9 +33,7 @@ export async function saveDataItems(siteId: string, raw: unknown): Promise<SaveD
   const languages = mergeBannerSettings((site.settings as { banner?: unknown }).banner).languages;
   try {
     const result = await replaceDataItems(siteId, items, languages);
-    await sql`
-      insert into audit_log (org_id, actor_user_id, action, target)
-      values (${session.orgId}, ${session.userId}, 'data_items.updated', ${siteId})`;
+    await writeAudit({ orgId: session.orgId, actorUserId: session.userId, action: "data_items.updated", target: siteId });
     revalidatePath(`/dashboard/sites/${siteId}`);
     return { ok: true, warning: result.translationWarning, items: await listDataItems(siteId) };
   } catch (err) {

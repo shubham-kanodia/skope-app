@@ -23,7 +23,7 @@ describe("stripMarkdown", () => {
   });
 
   it("leaves plain text and legit dashes alone", () => {
-    const clean = "We keep data 365 days.\n\n- Email address — to contact you";
+    const clean = "We keep data 365 days.\n\n- Email address, to contact you";
     expect(stripMarkdown(clean)).toBe(clean);
   });
 

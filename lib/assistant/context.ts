@@ -23,7 +23,7 @@ export async function buildOrgContext(orgId: string): Promise<string> {
     const ent = data.entitlement;
     lines.push(
       `Organisation: ${data.org.name} (access tier: ${getLimits(ent.tier).label}, status: ${ent.status}${
-        ent.banner ? ` — "${ent.banner}"` : ""
+        ent.banner ? `, "${ent.banner}"` : ""
       })`,
     );
   }

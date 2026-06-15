@@ -32,7 +32,7 @@ describe("buildSimplePdf", () => {
   });
 
   it("replaces non-ASCII so offsets stay byte-accurate", () => {
-    const pdf = buildSimplePdf([{ text: "नोटिस — hindi" }]);
+    const pdf = buildSimplePdf([{ text: "नोटिस, hindi" }]);
     const s = new TextDecoder().decode(pdf);
     expect(s).not.toMatch(/[^\x00-\x7f]/);
     expect(pdf.length).toBe(s.length); // pure ASCII: bytes == chars

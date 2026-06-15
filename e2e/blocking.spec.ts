@@ -114,7 +114,8 @@ test("Manage: granting analytics only releases analytics, not marketing", async 
   const hits = await setup(page);
   await page.goto("http://site.test/");
   await page.getByText("Manage choices").click();
-  await page.locator('[data-purpose="marketing"]').uncheck();
+  // Non-essential purposes start unticked (§6(1)); grant analytics explicitly.
+  await page.locator('[data-purpose="analytics"]').check();
   await page.getByText("Save choices").click();
 
   await expect.poll(() => ran(page, "__analyticsRan")).toBe(true);

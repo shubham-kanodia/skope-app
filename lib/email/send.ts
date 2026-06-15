@@ -46,7 +46,7 @@ export async function sendEmail({ to, subject, html, text }: OutboundEmail): Pro
     }),
   });
 
-  // Maileroo returns 200 with { success: boolean, message } — check both the
+  // Maileroo returns 200 with { success: boolean, message }, check both the
   // HTTP status and the success flag.
   let body: { success?: boolean; message?: string } = {};
   try {

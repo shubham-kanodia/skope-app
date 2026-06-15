@@ -1,4 +1,5 @@
 import type { PolicyContent, PolicyInput } from "./types";
+import { dpbComplaintBody } from "./dpb-channel";
 
 /**
  * Deterministic DPDP-aligned privacy-notice draft built from the site's own
@@ -6,6 +7,50 @@ import type { PolicyContent, PolicyInput } from "./types";
  * fallback if a live generation fails. [HUMAN] This is a starting template, not
  * legal advice; counsel must review before publishing.
  */
+/** Children's-data section, reflecting the site's actual §9 configuration. */
+function childrenBody(input: PolicyInput): string {
+  const c = input.children;
+  const exempt = c.exemptClass
+    ? `\n\nWe rely on the following exemption for children's data: ${c.exemptClass}. [HUMAN: confirm this exemption with counsel].`
+    : "";
+  if (c.childMode === "age_gate" || c.directedAtChildren) {
+    return (
+      `Our service may be used by children (under 18). Before processing a child's personal data, we ask for an age signal and obtain verifiable consent from a parent or guardian. ` +
+      `For children, we keep non-essential trackers off and do not use a child's data for tracking, behavioural monitoring, or targeted advertising, as DPDP §9 requires, even with consent.` +
+      exempt
+    );
+  }
+  return (
+    `Our service is not directed at children (under 18), and we do not knowingly process a child's personal data without verifiable parental consent. ` +
+    `We do not use children's data for tracking, behavioural monitoring, or targeted advertising. If you believe a child has provided us personal data, contact our grievance officer and we will address it.` +
+    exempt
+  );
+}
+
+/** "Who we share your data with" section (DPDP §11(1)(b)). */
+function recipientsBody(input: PolicyInput): string {
+  if (input.recipients.length === 0) {
+    return `We share your personal data only where needed to provide our service or meet a legal obligation. [HUMAN: list any processors (vendors acting for us) or other organisations you share data with, declare them in the recipients register so they appear here].`;
+  }
+  const lines = input.recipients
+    .map((r) => {
+      const role = r.role === "processor" ? "processor" : "data fiduciary";
+      const why = r.purpose ? `, ${r.purpose}` : "";
+      return `- ${r.name} (${role})${why}`;
+    })
+    .join("\n");
+  return `We share personal data with the following recipients, only for the purposes shown:\n\n${lines}\n\nProcessors act on our instructions under a contract. We do not sell your personal data.`;
+}
+
+/** "International transfers" section (DPDP §16). */
+function transfersBody(input: PolicyInput): string {
+  const countries = [...new Set(input.recipients.map((r) => r.country).filter((c): c is string => !!c && c !== "IN"))];
+  if (countries.length === 0) {
+    return `We process your personal data in India. If we ever transfer it outside India, we will do so only in line with DPDP and any restrictions the Government notifies.`;
+  }
+  return `Some recipients are located outside India (${countries.join(", ")}). Where we transfer your personal data abroad, we do so in line with DPDP and any country restrictions the Central Government notifies under §16.`;
+}
+
 export function templatePolicy(input: PolicyInput): PolicyContent {
   const org = input.orgName || input.domain;
 
@@ -60,12 +105,20 @@ export function templatePolicy(input: PolicyInput): PolicyContent {
         body: `We collect personal data to run this site and, where you agree, for other purposes.${
           dataItemLines
             ? `\n\nThe personal data we collect:\n\n${dataItemLines}`
-            : "\n\n[HUMAN: list the personal data your forms collect, like name, email, or phone — declare them in your Skope dashboard so they appear here]."
+            : "\n\n[HUMAN: list the personal data your forms collect, like name, email, or phone, declare them in your Skope dashboard so they appear here]."
         }\n\nThe purposes we process for are:\n\n${purposeLines}\n\nWe process strictly necessary data to provide the service you ask for. For everything else, our legal basis is your consent, which you give through our consent banner and can change at any time.`,
       },
       {
         heading: "Cookies and trackers",
         body: `We use cookies and similar technologies. Non-essential trackers stay blocked until you consent, and are released only for the purposes you allow:\n\n${trackerLines}\n\nYou can review and change these choices at any time from your privacy preferences.`,
+      },
+      {
+        heading: "Who we share your data with",
+        body: recipientsBody(input),
+      },
+      {
+        heading: "International transfers",
+        body: transfersBody(input),
       },
       {
         heading: "How long we keep your data",
@@ -83,11 +136,11 @@ export function templatePolicy(input: PolicyInput): PolicyContent {
       },
       {
         heading: "Complaints to the Data Protection Board",
-        body: `If we do not resolve your grievance to your satisfaction, you may complain to the Data Protection Board of India.`,
+        body: dpbComplaintBody(),
       },
       {
         heading: "Children's data",
-        body: `We do not knowingly process the personal data of children (under 18) without verifiable parental consent, and we do not use children's data for tracking, behavioural monitoring, or targeted advertising. [HUMAN: confirm whether your service is directed at or used by children and adjust this section].`,
+        body: childrenBody(input),
       },
       {
         heading: "Changes to this notice",

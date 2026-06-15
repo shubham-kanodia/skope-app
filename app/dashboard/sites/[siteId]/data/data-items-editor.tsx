@@ -255,7 +255,7 @@ export function DataItemsEditor({
         </button>
         {state === "saved" && <span className="text-sm text-success">Saved.</span>}
         {rows.length === 0 && (
-          <span className="text-sm text-muted">Add at least one item — even a contact form collects a name and email.</span>
+          <span className="text-sm text-muted">Add at least one item, even a contact form collects a name and email.</span>
         )}
       </div>
     </form>

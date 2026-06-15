@@ -4,7 +4,7 @@ import { verifyChain, type ChainLink, type ChainVerification } from "@/lib/conse
 /** Re-derive a site's chain from stored rows and verify it end-to-end. */
 export async function verifySiteChain(siteId: string): Promise<ChainVerification & { count: number }> {
   const rows = await sql`
-    select subject_id, action, purposes_granted, purposes_denied, notice_version,
+    select subject_id, action, purposes_granted, purposes_denied, notice_version, notice_checksum,
            language_shown, region, method, form_id, occurred_at, seq, prev_hash, row_hash
     from consent_receipts where site_id = ${siteId} order by seq asc`;
 
@@ -15,6 +15,7 @@ export async function verifySiteChain(siteId: string): Promise<ChainVerification
     purposesGranted: (r.purposes_granted ?? []) as string[],
     purposesDenied: (r.purposes_denied ?? []) as string[],
     noticeVersion: r.notice_version === null ? null : Number(r.notice_version),
+    noticeChecksum: (r.notice_checksum as string | null) ?? null,
     languageShown: (r.language_shown as string | null) ?? null,
     region: (r.region as string | null) ?? null,
     method: r.method,

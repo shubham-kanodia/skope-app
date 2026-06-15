@@ -2,8 +2,10 @@ import { after } from "next/server";
 import { corsHeaders, preflight } from "@/lib/http/cors";
 import { getSiteCfgByKey } from "@/lib/sites/by-key";
 import { mergeBannerSettings, DEFAULT_PURPOSES, type CfgDataItem } from "@/lib/banner/settings";
+import { childrenFromSettings } from "@/lib/children/settings";
+import { contactFromSettings } from "@/lib/contact/settings";
 import { listDataItems } from "@/lib/data-items/store";
-import { getPublishedNoticeVersion } from "@/lib/notices/store";
+import { getPublishedNoticeMeta } from "@/lib/notices/store";
 import { getOrgWithEntitlement } from "@/lib/orgs/queries";
 import { getLimits } from "@/lib/plans";
 import { decideGeo } from "@/lib/consent-core/geo";
@@ -33,8 +35,19 @@ export async function GET(
   }
 
   const banner = mergeBannerSettings((site.settings as { banner?: unknown }).banner);
+  const children = childrenFromSettings(site.settings);
+  const contact = contactFromSettings(site.settings);
+  // DPDP §6(3): the consent request must surface a DPO (where applicable) or
+  // other authorised person to exercise rights. Prefer the DPO; otherwise the
+  // grievance officer always present for DPDP completeness.
+  const rightsContact =
+    contact.dpoName || contact.dpoEmail
+      ? { name: contact.dpoName, email: contact.dpoEmail, role: "Data Protection Officer" }
+      : contact.grievanceName || contact.grievanceEmail
+        ? { name: contact.grievanceName, email: contact.grievanceEmail, role: "Grievance Officer" }
+        : null;
   const geo = decideGeo({ country: edgeCountry(request.headers), geoMode: site.geoMode as GeoMode });
-  const noticeVersion = await getPublishedNoticeVersion(site.id);
+  const noticeMeta = await getPublishedNoticeMeta(site.id);
 
   // Declared data items (DPDP §5), shown under each purpose in the manage view.
   const dataItems: CfgDataItem[] = (await listDataItems(site.id)).map((i) => ({
@@ -57,9 +70,12 @@ export async function GET(
     {
       siteKey,
       banner,
+      children: { childMode: children.childMode, directedAtChildren: children.directedAtChildren },
+      rightsContact,
       purposes: DEFAULT_PURPOSES,
       dataItems,
-      noticeVersion,
+      noticeVersion: noticeMeta.version,
+      noticeChecksum: noticeMeta.checksum,
       defaultLanguage: site.defaultLanguage,
       geo,
       policyUrl: `${appBase}/p/${siteKey}/privacy`,

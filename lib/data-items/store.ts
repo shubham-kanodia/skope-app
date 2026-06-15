@@ -4,7 +4,7 @@ import type { DataItem, DataItemCategory, DataItemInput } from "./types";
 
 /**
  * Declared data items per site. The list is small (≤40), so saving replaces the
- * whole set in one transaction — simplest sync that keeps positions and removals
+ * whole set in one transaction, simplest sync that keeps positions and removals
  * correct. Names are best-effort translated into the site's banner languages on
  * save; failure degrades to English-only (same posture as banner/policy
  * translation).

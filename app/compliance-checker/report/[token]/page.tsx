@@ -6,7 +6,7 @@ import { ScoreRing, StatusIcon, BAND_META } from "@/components/scan/score";
 import { getScanByToken } from "@/lib/scan/store";
 
 export const metadata: Metadata = {
-  title: "Your DPDP compliance report — Skope",
+  title: "Your DPDP compliance report, Skope",
   robots: { index: false, follow: false },
 };
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 /**
- * Download buttons for the records/requests pages. Plain anchors — the routes
+ * Download buttons for the records/requests pages. Plain anchors, the routes
  * stream attachments, no client state needed. The audit bundle is plan-gated
  * (growth+); below that it renders disabled with an upgrade hint.
  */
@@ -39,8 +39,7 @@ export function ExportMenu({
               Download audit bundle
             </span>
             <span className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 hidden w-60 -translate-x-1/2 rounded-xl border border-hairline bg-canvas p-3 text-xs text-body shadow-lg group-hover:block">
-              Audit bundles — receipts, notice versions, and a chain-verification report in one ZIP —
-              are on the Growth plan.{" "}
+              Audit bundles, receipts, notice versions, and a chain-verification report in one ZIP,               are on the Growth plan.{" "}
               <Link href="/dashboard/billing" className="font-medium text-primary">
                 See plans
               </Link>

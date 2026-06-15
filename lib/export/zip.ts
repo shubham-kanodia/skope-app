@@ -1,6 +1,6 @@
 /**
  * Minimal ZIP writer for audit bundles: stored entries (no compression), which
- * every unzip tool reads. Hand-rolled like the rest of lib/* — audit bundles
+ * every unzip tool reads. Hand-rolled like the rest of lib/*, audit bundles
  * are read-once artifacts, so compression is a nicety we skip for zero deps.
  *
  * Layout per the PKWARE APPNOTE: local file headers + data, then a central

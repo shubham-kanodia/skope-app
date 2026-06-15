@@ -28,6 +28,7 @@ export async function listReceiptsForOrg(orgId: string, limit = 100): Promise<Re
 export interface ExportReceiptRow extends ReceiptRow {
   id: string;
   notice_version: number | null;
+  notice_checksum: string | null;
   row_hash_hex: string;
   site_id: string;
 }
@@ -39,7 +40,7 @@ export interface ExportCursor {
 
 /**
  * One keyset-paginated batch of receipts for CSV/bundle export, newest first.
- * Keyset (not OFFSET, not postgres.js cursors — the transaction pooler can't
+ * Keyset (not OFFSET, not postgres.js cursors, the transaction pooler can't
  * hold portals) keeps memory bounded however large the ledger gets.
  */
 export async function listReceiptsForExport(
@@ -53,7 +54,7 @@ export async function listReceiptsForExport(
     : sql``;
   const rows = await sql`
     select r.id, r.site_id, r.occurred_at, r.action, r.purposes_granted, r.purposes_denied,
-           r.region, r.method, r.language_shown, r.seq, r.notice_version,
+           r.region, r.method, r.language_shown, r.seq, r.notice_version, r.notice_checksum,
            encode(r.row_hash, 'hex') as row_hash_hex, s.domain
     from consent_receipts r
     join sites s on s.id = r.site_id

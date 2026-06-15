@@ -5,7 +5,7 @@
  * gates, checkout):
  *   1. Launch offer: anyone signing up before LAUNCH_OFFER_SIGNUP_DEADLINE
  *      gets LAUNCH_OFFER_MONTHS months of compliance free (Growth-level).
- *   2. Payments are paused until PAYMENTS_PAUSED_UNTIL — no checkout, no
+ *   2. Payments are paused until PAYMENTS_PAUSED_UNTIL, no checkout, no
  *      upgrade nudges with a price on them.
  *   3. Every new org also gets a 30-day trial (matters only after the offer
  *      window closes).
@@ -70,7 +70,7 @@ function daysBetween(from: Date, to: Date): number {
 /**
  * Compute the entitlement fields for a brand-new org. While the launch offer
  * is open, every signup gets LAUNCH_OFFER_MONTHS of comp (comp_until set,
- * founding flags off — "founding member" is a legacy program we no longer
+ * founding flags off, "founding member" is a legacy program we no longer
  * assign). After the window closes, signups get the plain 30-day trial.
  * `foundingNumber` (from nextval) is accepted for call-site compatibility but
  * no longer grants anything.

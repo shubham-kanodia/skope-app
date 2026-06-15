@@ -11,6 +11,7 @@ const BASE_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Sites", exact: true, Icon: SitesIcon },
   { href: "/dashboard/records", label: "Records", Icon: RecordsIcon },
   { href: "/dashboard/requests", label: "Requests", Icon: RequestsIcon },
+  { href: "/dashboard/compliance", label: "Compliance", Icon: ComplianceIcon },
   { href: "/dashboard/assistant", label: "Assistant", Icon: AssistantIcon },
 ];
 const TEAM_ITEM: NavItem = { href: "/dashboard/team", label: "Team", Icon: TeamIcon };
@@ -85,6 +86,15 @@ function AssistantIcon({ className }: IconProps) {
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
       <path d="M21 12a8 8 0 0 1-8 8H4l2.2-2.8A8 8 0 1 1 21 12z" />
       <path d="M9 11h6M9 14.5h3.5" />
+    </svg>
+  );
+}
+
+function ComplianceIcon({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+      <path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z" />
+      <path d="M9 12l2 2 4-4" />
     </svg>
   );
 }

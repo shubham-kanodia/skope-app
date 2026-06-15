@@ -1,7 +1,7 @@
-import { sql } from "@/lib/db/client";
 import { getSession } from "@/lib/auth/session";
 import { listReceiptsForExport, type ExportCursor } from "@/lib/consent/list";
 import { toCsvRow } from "@/lib/export/csv";
+import { writeAudit } from "@/lib/audit/write";
 
 export const runtime = "nodejs";
 
@@ -14,6 +14,7 @@ const HEADER = [
   "purposes_granted",
   "purposes_denied",
   "notice_version",
+  "notice_checksum",
   "language",
   "region",
   "row_hash",
@@ -31,9 +32,7 @@ export async function GET(request: Request) {
   const orgId = session.orgId;
   const siteId = new URL(request.url).searchParams.get("site") ?? undefined;
 
-  await sql`
-    insert into audit_log (org_id, actor_user_id, action, target)
-    values (${orgId}, ${session.userId}, 'export.receipts', ${siteId ?? "all"})`;
+  await writeAudit({ orgId, actorUserId: session.userId, action: "export.receipts", target: siteId ?? "all" });
 
   const encoder = new TextEncoder();
   let cursor: ExportCursor | null = null;
@@ -61,6 +60,7 @@ export async function GET(request: Request) {
           (r.purposes_granted ?? []).join(" "),
           (r.purposes_denied ?? []).join(" "),
           r.notice_version ?? "",
+          r.notice_checksum ?? "",
           r.language_shown ?? "",
           r.region ?? "",
           r.row_hash_hex,

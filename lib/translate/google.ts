@@ -1,5 +1,5 @@
 /**
- * Google Cloud Translation API (v2 REST). Server-side only — the API key never
+ * Google Cloud Translation API (v2 REST). Server-side only, the API key never
  * reaches the browser. Translates a batch of strings in one request, order
  * preserved. Throws a friendly error when the key is missing.
  */

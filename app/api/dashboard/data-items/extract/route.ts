@@ -10,7 +10,7 @@ const MIMES = new Set(["image/png", "image/jpeg", "image/webp"]);
 
 /**
  * Suggest data items from a form screenshot. The image is read into memory,
- * sent to the vision model once, and discarded — nothing is saved by this
+ * sent to the vision model once, and discarded, nothing is saved by this
  * route; the user reviews suggestions in the editor before saving.
  */
 export async function POST(request: Request) {

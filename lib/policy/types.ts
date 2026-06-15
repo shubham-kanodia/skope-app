@@ -42,6 +42,19 @@ export interface PolicyInput {
   dpoName: string;
   dpoEmail: string;
   responseDays: number;
+  /** Children's-data configuration (DPDP §9), so the notice reflects reality. */
+  children: {
+    directedAtChildren: boolean;
+    childMode: "off" | "age_gate";
+    exemptClass: string | null;
+  };
+  /** Declared recipients (DPDP §11(1)(b)) and their destination countries (§16). */
+  recipients: {
+    name: string;
+    role: "fiduciary" | "processor";
+    purpose: string | null;
+    country: string | null;
+  }[];
 }
 
 /** Coerce untrusted JSON (from the model) into a valid PolicyContent. */

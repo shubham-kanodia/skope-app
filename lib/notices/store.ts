@@ -47,7 +47,7 @@ export async function getLatestPublishedNotice(siteId: string): Promise<NoticeRo
   return rows[0] ? rowToNotice(rows[0]) : null;
 }
 
-/** Every published version, oldest first — the audit bundle ships them all. */
+/** Every published version, oldest first, the audit bundle ships them all. */
 export async function listPublishedNotices(siteId: string): Promise<NoticeRow[]> {
   const rows = await sql`
     select version, content_i18n, published_at, checksum, created_at
@@ -62,6 +62,19 @@ export async function getPublishedNoticeVersion(siteId: string): Promise<number>
     select version from notices where site_id = ${siteId} and published_at is not null
     order by version desc limit 1`;
   return rows[0] ? Number(rows[0].version) : 1;
+}
+
+/**
+ * Published notice version + checksum for the cfg endpoint. The checksum is
+ * pinned onto each consent receipt (DPDP §6(10)) so the exact notice shown is
+ * self-contained. Defaults to version 1 / null checksum when nothing published.
+ */
+export async function getPublishedNoticeMeta(siteId: string): Promise<{ version: number; checksum: string | null }> {
+  const rows = await sql`
+    select version, checksum from notices where site_id = ${siteId} and published_at is not null
+    order by version desc limit 1`;
+  if (!rows[0]) return { version: 1, checksum: null };
+  return { version: Number(rows[0].version), checksum: (rows[0].checksum as string | null) ?? null };
 }
 
 function checksumOf(contentI18n: Record<string, PolicyContent>): string {

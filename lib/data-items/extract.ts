@@ -4,7 +4,7 @@ import { DATA_ITEM_CATEGORIES, type DataItemCategory } from "./types";
  * Read a screenshot of a form and suggest the personal-data fields it collects,
  * using the same OpenRouter conventions as lib/policy/generate.ts (the default
  * Gemini flash model accepts images). The image lives only in this request's
- * memory — it is sent to the model once and never persisted anywhere.
+ * memory, it is sent to the model once and never persisted anywhere.
  *
  * Unlike policy generation there is no template fallback for vision: when the
  * key is unset or the call fails we return null and the UI routes the user to
@@ -28,7 +28,7 @@ Return ONLY a JSON object, no prose, with this exact shape:
 
 - "name": a short plain-English label for the data, e.g. "Email address" (not the raw field placeholder)
 - "category": one of "identity", "contact", "financial", "official_id", "usage", "other"
-- "purpose": one of "necessary", "analytics", "marketing" — your best guess at why the form collects it ("necessary" for anything needed to deliver the service)`;
+- "purpose": one of "necessary", "analytics", "marketing", your best guess at why the form collects it ("necessary" for anything needed to deliver the service)`;
 
 export async function extractFieldsFromImage(image: {
   mime: string;

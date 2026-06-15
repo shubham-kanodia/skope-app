@@ -24,7 +24,7 @@
   --amber: #f4b000; /* deadlines, trial countdown, warnings */
   --amber-deep: #8a6400; /* legible amber for text on pale amber pills */
   --success: #00a05e; /* a touch darker than the landing green so pills read clearly on white */
-  --danger: #d92d20; /* broken script, overdue, errors — reserved for real problems */
+  --danger: #d92d20; /* broken script, overdue, errors, reserved for real problems */
 }
 
 @theme inline {

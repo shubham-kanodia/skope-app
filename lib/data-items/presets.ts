@@ -1,7 +1,7 @@
 import type { DataItemCategory } from "./types";
 
 /**
- * One-click presets for the editor — the items Indian sites most commonly
+ * One-click presets for the editor, the items Indian sites most commonly
  * collect. Official IDs carry helper text because they warrant extra care
  * under DPDP (collect only when a law or the stated purpose truly needs them).
  */

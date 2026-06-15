@@ -1,5 +1,5 @@
 /**
- * Typed GA4 event tracking. Client-side only — every event Skope sends is
+ * Typed GA4 event tracking. Client-side only, every event Skope sends is
  * declared in AnalyticsEvents so names and params stay consistent across call
  * sites and in GA custom definitions.
  *

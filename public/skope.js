@@ -26,6 +26,11 @@
 
   var COOKIE = "skope_consent_" + siteKey;
   var SUBJECT = "skope_subject_" + siteKey;
+  var AGE = "skope_age_" + siteKey; // 'adult' | 'child' age signal (DPDP §9)
+  var PARENT = "skope_parent_" + siteKey; // 'requested' once a guardian link was sent
+
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 
   function uuid() {
     if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
@@ -149,6 +154,30 @@
     try { document.dispatchEvent(new CustomEvent("skope:consent", { detail: { granted: granted } })); } catch (e) {}
   }
 
+  // Child mode (DPDP §9(3)): keep non-essential trackers off for a child, record
+  // the essential-only state once, and prompt for verifiable parental consent
+  // until a guardian link has been requested.
+  function enforceChild(cfg) {
+    var d = decide(cfg, "deny"); // essential only
+    applyConsent(d.granted);
+    if (!getCookie(COOKIE)) { send(cfg, "deny", d, "banner"); }
+    if (lsGet(PARENT) !== "requested") { render(cfg, { startView: "parental" }); }
+  }
+
+  // POST a guardian email to start verifiable parental consent.
+  function sendParental(cfg, email, ok, fail) {
+    var body = JSON.stringify({ siteKey: siteKey, subjectId: getSubject(), guardianEmail: email });
+    fetch(base + "/api/v1/parental-consent", {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=UTF-8" },
+      body: body,
+      mode: "cors",
+    })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) { if (res.ok && res.j && !res.j.error) { lsSet(PARENT, "requested"); ok(); } else { fail(res.j && res.j.error); } })
+      .catch(function () { fail(); });
+  }
+
   // The last cfg we fetched, so the preference center can re-open without a refetch.
   var LATEST_CFG = null;
 
@@ -157,7 +186,7 @@
   window.skope.getConsent = function () { return currentGranted.slice(); };
   // Re-open the manage view so a visitor can change or withdraw consent at any
   // time (DPDP §6(4): withdrawing must be as easy as giving). Tracker blocking is
-  // re-applied in place — already-running scripts can't be un-run, but Google
+  // re-applied in place, already-running scripts can't be un-run, but Google
   // Consent Mode flips to denied and the reduced choice is stored, so nothing new
   // loads and the next page view is fully re-blocked.
   window.skope.openPreferences = function () {
@@ -196,6 +225,18 @@
       // Optional persistent affordance so visitors can re-open their choices.
       if (cfg.banner && cfg.banner.showPreferencesButton) renderPrefsButton(cfg);
       if (!cfg.geo || !cfg.geo.showBanner) return;
+
+      // Children's data (DPDP §9): when child mode is on, ask for an age signal
+      // before consent. A child is held to essential-only, non-essential
+      // trackers stay blocked regardless of any UI, and routed to verifiable
+      // parental consent. The age signal is remembered locally.
+      if (cfg.children && cfg.children.childMode === "age_gate") {
+        var age = lsGet(AGE);
+        if (age === "child") { enforceChild(cfg); return; }
+        if (age !== "adult") { render(cfg, { startView: "age" }); return; }
+        // age === "adult" → fall through to the normal banner.
+      }
+
       if (prior) {
         try {
           var st = JSON.parse(prior);
@@ -259,6 +300,7 @@
       purposesGranted: decision.granted,
       purposesDenied: decision.denied,
       noticeVersion: cfg.noticeVersion,
+      noticeChecksum: cfg.noticeChecksum,
       language: stateLang,
       region: cfg.geo.region,
       method: method || "banner",
@@ -306,14 +348,21 @@
     (document.body || document.documentElement).appendChild(host);
 
     var view = opts.startView || "main";
-    // In the preference center, reflect what's currently granted; on the first
-    // banner the manage view defaults to "on" and the visitor toggles off.
+    // In the preference center, reflect what's currently granted. On the first
+    // banner, non-essential purposes default to OFF, DPDP §6(1) requires a clear
+    // affirmative action, so nothing non-essential may be pre-ticked.
     var selected = prefs
       ? nonEssentialKeys(cfg).filter(function (k) { return currentGranted.indexOf(k) !== -1; })
-      : nonEssentialKeys(cfg).slice();
+      : [];
 
     function paint() {
-      shadow.innerHTML = css(b) + (view === "main" ? mainView(cfg) : manageView(cfg, selected, prefs));
+      var html;
+      if (view === "age") html = ageView(cfg);
+      else if (view === "parental") html = parentalView(cfg, false);
+      else if (view === "parental-sent") html = parentalView(cfg, true);
+      else if (view === "main") html = mainView(cfg);
+      else html = manageView(cfg, selected, prefs);
+      shadow.innerHTML = css(b) + html;
       wire();
     }
 
@@ -326,7 +375,34 @@
       var langSel = $("[data-skope=lang]");
       if (langSel) langSel.onchange = function () { stateLang = langSel.value; paint(); };
 
-      if (view === "main") {
+      if (view === "age") {
+        $("[data-skope=age-adult]").onclick = function () { lsSet(AGE, "adult"); view = "main"; paint(); };
+        $("[data-skope=age-child]").onclick = function () {
+          lsSet(AGE, "child");
+          var d = decide(cfg, "deny");
+          if (!getCookie(COOKIE)) send(cfg, "deny", d, "banner");
+          applyConsent(d.granted);
+          view = "parental";
+          paint();
+        };
+      } else if (view === "parental" || view === "parental-sent") {
+        var doneBtn = $("[data-skope=parental-done]");
+        if (doneBtn) doneBtn.onclick = function () { close(); };
+        var closeBtn = $("[data-skope=parental-close]");
+        if (closeBtn) closeBtn.onclick = function () { close(); };
+        var sendBtn = $("[data-skope=guardian-send]");
+        if (sendBtn) sendBtn.onclick = function () {
+          var inp = $("[data-skope=guardian-email]");
+          var err = $("[data-skope=guardian-err]");
+          var email = ((inp && inp.value) || "").trim();
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { if (err) err.textContent = "Enter a valid email."; return; }
+          sendBtn.disabled = true;
+          sendParental(cfg, email, function () { view = "parental-sent"; paint(); }, function (msg) {
+            sendBtn.disabled = false;
+            if (err) err.textContent = msg || "Couldn't send. Try again.";
+          });
+        };
+      } else if (view === "main") {
         $("[data-skope=accept]").onclick = function () { var d = decide(cfg, "grant"); send(cfg, "grant", d, method); applyConsent(d.granted); close(); };
         $("[data-skope=reject]").onclick = function () { var d = decide(cfg, "deny"); send(cfg, "deny", d, method); applyConsent(d.granted); close(); };
         $("[data-skope=manage]").onclick = function () { view = "manage"; paint(); };
@@ -415,6 +491,48 @@
     );
   }
 
+  // Age-assurance step (DPDP §9): shown before consent when child mode is on.
+  function ageView(cfg) {
+    return (
+      '<div class="card" role="dialog" aria-label="Age check">' +
+      '<div class="head"><strong class="h">Before you continue</strong></div>' +
+      '<p class="desc">Please confirm your age so we can protect children’s data the way the law requires.</p>' +
+      '<div class="actions">' +
+      '<button data-skope="age-adult" class="btn primary">I’m 18 or older</button>' +
+      '<button data-skope="age-child" class="btn">I’m under 18</button>' +
+      "</div>" +
+      footer(cfg) +
+      "</div>"
+    );
+  }
+
+  // Verifiable parental-consent capture for a child visitor (DPDP §9(1)).
+  function parentalView(cfg, sent) {
+    if (sent) {
+      return (
+        '<div class="card" role="dialog" aria-label="Parental consent">' +
+        '<div class="head"><strong class="h">Check with your parent or guardian</strong></div>' +
+        '<p class="desc">We’ve emailed them a link to approve. Until they do, only essential features are on.</p>' +
+        '<div class="actions"><button data-skope="parental-done" class="btn primary">Done</button></div>' +
+        footer(cfg) +
+        "</div>"
+      );
+    }
+    return (
+      '<div class="card" role="dialog" aria-label="Parental consent">' +
+      '<div class="head"><strong class="h">Ask a parent or guardian</strong></div>' +
+      '<p class="desc">Because you’re under 18, we need a parent or guardian’s consent. Analytics and marketing stay off for you either way. Enter their email and we’ll send them a link.</p>' +
+      '<input data-skope="guardian-email" type="email" inputmode="email" placeholder="parent@example.com" class="inp" />' +
+      '<div class="actions">' +
+      '<button data-skope="guardian-send" class="btn primary">Send approval link</button>' +
+      '<button data-skope="parental-close" class="btn ghost">Not now</button>' +
+      "</div>" +
+      '<span data-skope="guardian-err" class="err"></span>' +
+      footer(cfg) +
+      "</div>"
+    );
+  }
+
   function manageView(cfg, selected, prefs) {
     var b = cfg.banner;
     // Declared data items (DPDP §5) grouped under their purpose. Older cached
@@ -442,10 +560,19 @@
     // secondary action "Close" (there's no first-run "main" view to return to).
     var withdrawBtn = prefs ? '<button data-skope="withdraw" class="btn">Withdraw all</button>' : "";
     var backLabel = prefs ? "Close" : "Back";
+    // DPDP §6(3): show the DPO / authorised contact for exercising rights.
+    var rc = cfg.rightsContact;
+    var rcLine = rc && (rc.name || rc.email)
+      ? '<p class="rights">To exercise your rights, contact ' +
+        (rc.name ? esc(rc.name) : esc(rc.role || "us")) +
+        (rc.email ? ' (<a class="link" href="mailto:' + esc(rc.email) + '">' + esc(rc.email) + "</a>)" : "") +
+        ".</p>"
+      : "";
     return (
       '<div class="card" role="dialog" aria-label="Manage choices">' +
       '<div class="head"><strong class="h">' + esc(copyFor(b).manageLabel) + "</strong>" + langSwitcher(b) + "</div>" +
       '<div class="purposes">' + rows + "</div>" +
+      rcLine +
       '<div class="actions">' +
       '<button data-skope="save" class="btn primary">Save choices</button>' +
       withdrawBtn +
@@ -490,6 +617,8 @@
       ".btn.primary{background:" + esc(b.accent) + ";border-color:" + esc(b.accent) + ";color:#fff}" +
       ".btn.primary:hover{filter:brightness(.94)}" +
       ".btn.ghost{border-color:transparent;background:transparent;color:" + esc(b.accent) + "}" +
+      ".inp{width:100%;font:14px inherit;border:1px solid #dee1e6;border-radius:10px;padding:9px 12px;margin:0 0 12px;color:#0a0b0d}" +
+      ".err{display:block;color:#b42318;font-size:12px;margin-top:8px;min-height:14px}" +
       ".purposes{display:flex;flex-direction:column;gap:10px;margin:4px 0 14px;max-height:240px;overflow:auto}" +
       ".purpose{display:flex;gap:10px;align-items:flex-start;cursor:pointer}" +
       ".purpose input{margin-top:3px}" +
@@ -498,6 +627,7 @@
       ".locked{color:#7c828a;font-weight:400;font-size:12px}" +
       ".pdesc{font-size:13px}" +
       ".pdata{font-size:12px;color:#7c828a;margin-top:2px}" +
+      ".rights{font-size:12px;color:#5b616e;margin:0 0 12px}" +
       ".foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px;padding-top:10px;border-top:1px solid #eef0f3;font-size:12px}" +
       ".link{color:" + esc(b.accent) + ";text-decoration:none}" +
       ".link:hover{text-decoration:underline}" +

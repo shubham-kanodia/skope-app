@@ -14,7 +14,15 @@ import type { ReceiptCore } from "./types";
 const HASH_BYTES = 32;
 export const GENESIS_PREV_HASH = Buffer.alloc(HASH_BYTES, 0);
 
-/** Stable, sorted view of a receipt used as the hash input. */
+/**
+ * Stable, sorted view of a receipt used as the hash input.
+ *
+ * `noticeChecksum` is included ONLY when truthy. canonicalJson omits undefined
+ * keys, so a receipt without a checksum (every row written before §6(10)
+ * hardening) serializes exactly as before and its stored hash still verifies.
+ * A receipt WITH a checksum binds it into the hash, so the precise notice text
+ * shown is self-contained and tamper-evident.
+ */
 export function canonicalReceipt(r: ReceiptCore): string {
   return canonicalJson({
     siteId: r.siteId,
@@ -23,6 +31,7 @@ export function canonicalReceipt(r: ReceiptCore): string {
     purposesGranted: [...r.purposesGranted].sort(),
     purposesDenied: [...r.purposesDenied].sort(),
     noticeVersion: r.noticeVersion,
+    noticeChecksum: r.noticeChecksum || undefined,
     languageShown: r.languageShown,
     region: r.region,
     method: r.method,

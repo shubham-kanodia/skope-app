@@ -4,11 +4,19 @@ import { requireSession } from "@/lib/auth/guard";
 import { getSiteForOrg } from "@/lib/orgs/queries";
 import { mergeBannerSettings } from "@/lib/banner/settings";
 import { contactFromSettings, hasGrievanceContact } from "@/lib/contact/settings";
+import { retentionFromSettings } from "@/lib/retention/settings";
+import { childrenFromSettings } from "@/lib/children/settings";
+import { exemptionsFromSettings } from "@/lib/exemptions/settings";
 import { listDataItems } from "@/lib/data-items/store";
 import { getLatestNotice } from "@/lib/notices/store";
 import { getSetupState } from "@/lib/sites/setup";
 import { Tooltip } from "@/components/ui/tooltip";
+import { listRecipients } from "@/lib/recipients/store";
 import { SiteWizard } from "./site-wizard";
+import { RetentionSettingsEditor } from "./retention-settings";
+import { ChildrenSettingsEditor } from "./children-settings";
+import { ExemptionSettingsEditor } from "./exemptions-settings";
+import { RecipientsEditor } from "./recipients/recipients-editor";
 
 export default async function SitePage({ params }: { params: Promise<{ siteId: string }> }) {
   const { siteId } = await params;
@@ -20,6 +28,7 @@ export default async function SitePage({ params }: { params: Promise<{ siteId: s
   const contact = contactFromSettings(site.settings);
   const latestNotice = await getLatestNotice(site.id);
   const dataItems = await listDataItems(site.id);
+  const recipients = await listRecipients(site.id);
   const setup = await getSetupState(site.id, site.settings, site.last_seen_at);
 
   return (
@@ -46,6 +55,18 @@ export default async function SitePage({ params }: { params: Promise<{ siteId: s
         contactReady={hasGrievanceContact(contact)}
         initial={setup}
       />
+
+      <RetentionSettingsEditor siteId={site.id} initial={retentionFromSettings(site.settings)} />
+
+      <ChildrenSettingsEditor siteId={site.id} initial={childrenFromSettings(site.settings)} />
+
+      <RecipientsEditor
+        siteId={site.id}
+        initial={recipients}
+        dataItems={dataItems.map((d) => ({ key: d.key, name: d.name.en ?? d.key }))}
+      />
+
+      <ExemptionSettingsEditor siteId={site.id} initial={exemptionsFromSettings(site.settings)} />
     </div>
   );
 }

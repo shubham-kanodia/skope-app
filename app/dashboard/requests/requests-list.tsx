@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { updateRequest } from "./actions";
+import { updateRequest, markFrivolous } from "./actions";
 import type { RequestRow, RequestStatus } from "@/lib/requests/store";
 
 const TYPE_LABEL: Record<string, string> = {
@@ -50,8 +50,16 @@ function Card({ row, onChanged }: { row: RequestRow; onChanged: (id: string, s: 
   const [note, setNote] = useState(row.resolutionNote ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [frivolous, setFrivolous] = useState(row.frivolous);
   const open = row.status === "new" || row.status === "in_progress";
   const due = dueMeta(row.dueAt, open);
+
+  async function toggleFrivolous() {
+    const next = !frivolous;
+    setFrivolous(next);
+    const res = await markFrivolous(row.id, next);
+    if (res.error) setFrivolous(!next);
+  }
 
   async function move(status: RequestStatus) {
     setBusy(true);
@@ -71,6 +79,9 @@ function Card({ row, onChanged }: { row: RequestRow; onChanged: (id: string, s: 
               {TYPE_LABEL[row.type] ?? row.type}
             </span>
             <span className="text-xs text-muted">{STATUS_LABEL[row.status] ?? row.status}</span>
+            {frivolous && (
+              <span className="rounded-full bg-amber/10 px-2 py-0.5 text-xs font-medium text-amber">Flagged frivolous</span>
+            )}
           </div>
           <p className="mt-2 text-sm text-ink">{row.email ?? "Email unavailable"}</p>
           <p className="text-xs text-muted">
@@ -81,6 +92,26 @@ function Card({ row, onChanged }: { row: RequestRow; onChanged: (id: string, s: 
       </div>
 
       {row.detail && <p className="mt-3 rounded-xl bg-surface-soft px-4 py-3 text-sm text-body">{row.detail}</p>}
+
+      {row.type === "grievance" && (
+        <button onClick={toggleFrivolous} className="mt-3 block text-xs text-muted hover:text-amber">
+          {frivolous ? "Clear frivolous flag" : "Flag as frivolous"}
+        </button>
+      )}
+
+      {row.type === "access" && (
+        <p className="mt-3 text-sm">
+          <a
+            href={`/api/dashboard/requests/${row.id}/access-summary`}
+            target="_blank"
+            rel="noopener"
+            className="text-primary hover:text-primary-active"
+          >
+            Generate data summary (PDF)
+          </a>
+          <span className="ml-2 text-xs text-muted">Verify the requester&apos;s identity before sending.</span>
+        </p>
+      )}
 
       {open ? (
         <div className="mt-4 space-y-3">
