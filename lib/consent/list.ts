@@ -10,13 +10,15 @@ export interface ReceiptRow {
   language_shown: string | null;
   seq: number;
   domain: string;
+  /** Pseudonymous per-site visitor id (DPDP-minimized): ties one visitor's receipts together. */
+  subject_id: string | null;
 }
 
 /** Recent consent receipts across all of an org's sites, newest first. */
 export async function listReceiptsForOrg(orgId: string, limit = 100): Promise<ReceiptRow[]> {
   const rows = await sql`
     select r.occurred_at, r.action, r.purposes_granted, r.purposes_denied,
-           r.region, r.method, r.language_shown, r.seq, s.domain
+           r.region, r.method, r.language_shown, r.seq, r.subject_id, s.domain
     from consent_receipts r
     join sites s on s.id = r.site_id
     where s.org_id = ${orgId}
@@ -54,7 +56,7 @@ export async function listReceiptsForExport(
     : sql``;
   const rows = await sql`
     select r.id, r.site_id, r.occurred_at, r.action, r.purposes_granted, r.purposes_denied,
-           r.region, r.method, r.language_shown, r.seq, r.notice_version, r.notice_checksum,
+           r.region, r.method, r.language_shown, r.seq, r.subject_id, r.notice_version, r.notice_checksum,
            encode(r.row_hash, 'hex') as row_hash_hex, s.domain
     from consent_receipts r
     join sites s on s.id = r.site_id

@@ -28,7 +28,7 @@ export const runtime = "nodejs";
 const MAX_RECEIPTS_PER_SITE = 250_000;
 
 const RECEIPT_HEADER = [
-  "occurred_at", "domain", "seq", "action", "method", "purposes_granted",
+  "occurred_at", "domain", "subject_id", "seq", "action", "method", "purposes_granted",
   "purposes_denied", "notice_version", "notice_checksum", "language", "region", "row_hash",
 ];
 
@@ -96,7 +96,7 @@ export async function GET(request: Request) {
       if (rows.length === 0) break;
       for (const r of rows) {
         csv += toCsvRow([
-          new Date(r.occurred_at).toISOString(), r.domain, r.seq, r.action, r.method,
+          new Date(r.occurred_at).toISOString(), r.domain, r.subject_id ?? "", r.seq, r.action, r.method,
           (r.purposes_granted ?? []).join(" "), (r.purposes_denied ?? []).join(" "),
           r.notice_version ?? "", r.notice_checksum ?? "", r.language_shown ?? "", r.region ?? "", r.row_hash_hex,
         ]);

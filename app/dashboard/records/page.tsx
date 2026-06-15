@@ -3,6 +3,7 @@ import { getOrgGate } from "@/lib/billing/gate";
 import { listReceiptsForOrg, countReceiptsForOrg, type ReceiptRow } from "@/lib/consent/list";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ExportMenu } from "@/components/dashboard/export-menu";
+import { Tooltip } from "@/components/ui/tooltip";
 
 const ACTION_LABEL: Record<string, string> = {
   grant: "Accepted all",
@@ -67,6 +68,12 @@ export default async function RecordsPage() {
                 <tr className="border-b border-hairline text-left text-xs text-muted">
                   <Th>When (IST)</Th>
                   <Th>Site</Th>
+                  <Th>
+                    <span className="inline-flex items-center gap-1">
+                      Visitor
+                      <Tooltip content="A pseudonymous id we set per site, stored in the visitor's browser. It links all of one visitor's choices together without holding their name or full IP, so the record stays auditable while collecting the least data DPDP allows." />
+                    </span>
+                  </Th>
                   <Th>Decision</Th>
                   <Th>Purposes</Th>
                   <Th>Channel</Th>
@@ -107,6 +114,13 @@ function Row({ r }: { r: ReceiptRow }) {
     <tr className="border-b border-hairline-soft last:border-0">
       <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-body">{when.format(new Date(r.occurred_at))}</td>
       <td className="whitespace-nowrap px-4 py-3 text-ink">{r.domain}</td>
+      <td className="whitespace-nowrap px-4 py-3">
+        {r.subject_id ? (
+          <span className="font-mono text-xs text-body" title={r.subject_id}>{r.subject_id.slice(0, 8)}…</span>
+        ) : (
+          <span className="text-xs text-muted">-</span>
+        )}
+      </td>
       <td className="whitespace-nowrap px-4 py-3 text-ink">{ACTION_LABEL[r.action] ?? r.action}</td>
       <td className="px-4 py-3">
         <div className="flex flex-wrap gap-1">

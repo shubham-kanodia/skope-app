@@ -8,6 +8,7 @@ export const runtime = "nodejs";
 const HEADER = [
   "occurred_at",
   "domain",
+  "subject_id",
   "seq",
   "action",
   "method",
@@ -54,6 +55,7 @@ export async function GET(request: Request) {
         chunk += toCsvRow([
           new Date(r.occurred_at).toISOString(),
           r.domain,
+          r.subject_id ?? "",
           r.seq,
           r.action,
           r.method,
