@@ -96,7 +96,7 @@ export function ComplianceChecker() {
         </div>
         {error && <p className="text-sm text-ink">{error}</p>}
         <p className="text-sm text-muted">
-          We check your homepage only, and never store your visitors&apos; data.
+          We check your homepage only.
         </p>
       </form>
     );
