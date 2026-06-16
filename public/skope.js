@@ -596,7 +596,10 @@
       pos =
         ":host{position:fixed;inset:0;z-index:2147483647}.wrap{position:fixed;inset:0;background:rgba(10,11,13,.45);display:flex;align-items:center;justify-content:center;padding:16px}.card{max-width:520px;width:100%}";
     } else if (b.layout === "corner") {
-      pos = ":host{position:fixed;z-index:2147483647}.wrap{position:fixed;right:16px;bottom:16px;max-width:380px}";
+      pos =
+        ":host{position:fixed;z-index:2147483647}.wrap{position:fixed;right:16px;bottom:16px;max-width:380px}" +
+        // On narrow screens a 380px card pinned to the right overflows off-screen; go full-bleed.
+        "@media (max-width:480px){.wrap{left:12px;right:12px;bottom:12px;max-width:none}}";
     } else {
       pos = ":host{position:fixed;z-index:2147483647}.wrap{position:fixed;left:0;right:0;bottom:0}";
     }
@@ -634,6 +637,15 @@
       ".link:hover{text-decoration:underline}" +
       ".brand{display:inline-flex;align-items:center;gap:6px;color:#7c828a;white-space:nowrap}" +
       ".brand svg{display:block}" +
+      // Mobile: tighten padding and stack actions into full-width, easy-to-tap buttons.
+      "@media (max-width:480px){" +
+      ".card{padding:16px}" +
+      ".head{flex-wrap:wrap}" +
+      ".actions{flex-direction:column;gap:8px}" +
+      ".actions .btn{width:100%;text-align:center}" +
+      ".purposes{max-height:46vh}" +
+      ".foot{gap:8px}" +
+      "}" +
       "</style>" +
       '<div class="wrap">'
     );
