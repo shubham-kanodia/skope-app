@@ -32,11 +32,28 @@ export interface DetectedTracker {
   category: "analytics" | "marketing";
 }
 
-/** Return the de-duplicated set of known trackers referenced in the HTML. */
+/** Return the de-duplicated set of known trackers referenced anywhere in the HTML. */
 export function detectTrackers(html: string): DetectedTracker[] {
   const found = new Map<string, DetectedTracker>();
   for (const t of TRACKERS) {
     if (t.re.test(html)) found.set(t.name, { name: t.name, category: t.category });
   }
   return [...found.values()];
+}
+
+/**
+ * Trackers that would actually execute on load, ignoring references that don't run
+ * before consent: resource hints (`<link rel="preload/prefetch/preconnect">`) only
+ * fetch bytes, and CMP-gated scripts (`type="text/plain"` + `data-skope`, the Skope
+ * blocking technique) don't run until the visitor opts in. A page can preload GA and
+ * still be compliant if the script is gated — so this is what the scan should grade.
+ */
+export function detectActiveTrackers(html: string): DetectedTracker[] {
+  const executable = html
+    // Resource hints fetch but never execute.
+    .replace(/<link\b[^>]*\brel=["']?(?:preload|modulepreload|prefetch|preconnect|dns-prefetch)["']?[^>]*>/gi, " ")
+    // Scripts gated by a CMP (Skope and most others mark them text/plain + a data-* flag).
+    .replace(/<script\b[^>]*\bdata-skope\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<script\b[^>]*\btype=["']text\/plain["'][^>]*>[\s\S]*?<\/script>/gi, " ");
+  return detectTrackers(executable);
 }
