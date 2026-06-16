@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ScoreRing, StatusIcon, BAND_META, type Band } from "@/components/scan/score";
 import type { FindingStatus } from "@/lib/scan/analyze";
+import { track } from "@/lib/analytics/gtag";
 
 interface ScanResult {
   token: string;
@@ -40,8 +41,10 @@ export function ComplianceChecker() {
         setPhase("input");
         return;
       }
-      setResult(data as ScanResult);
+      const scan = data as ScanResult;
+      setResult(scan);
       setPhase("results");
+      track("compliance_scan", { score: scan.score, band: scan.band, tracker_count: scan.trackerCount });
     } catch {
       setError("We couldn't reach the scanner. Try again.");
       setPhase("input");
@@ -68,6 +71,7 @@ export function ComplianceChecker() {
       }
       setEmailState("sent");
       setEmailMsg(data.error ?? null); // e.g. "couldn't email, open here instead"
+      track("compliance_report_emailed", { score: result.score, band: result.band }); // captured lead
     } catch {
       setEmailState("error");
       setEmailMsg("Network error. Try again.");

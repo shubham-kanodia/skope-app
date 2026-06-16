@@ -35,6 +35,9 @@ export interface AnalyticsEvents {
   plan_granted: { plan: string };
   data_extract_completed: { items_count: number; file_kb: number };
   data_extract_failed: { status: number; file_kb: number };
+  // Public compliance checker funnel (lead-gen): a scan, then the emailed report.
+  compliance_scan: { score: number; band: string; tracker_count: number };
+  compliance_report_emailed: { score: number; band: string };
 }
 
 declare global {
