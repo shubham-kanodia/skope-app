@@ -41,7 +41,16 @@ export async function POST(request: Request) {
     body: JSON.stringify({ amount, currency: "INR", notes: { orgId: session.orgId, plan } }),
   });
   if (!res.ok) {
-    console.error("[billing/checkout] razorpay order failed", res.status, await res.text());
+    const detail = await res.text();
+    console.error("[billing/checkout] razorpay order failed", res.status, detail);
+    if (res.status === 401) {
+      // Razorpay rejected our key/secret pair, this is a server misconfiguration,
+      // not a user error. Surface it plainly so the owner knows to fix the keys.
+      return Response.json(
+        { error: "Payments are misconfigured (invalid Razorpay keys). Please contact support." },
+        { status: 500 },
+      );
+    }
     return Response.json({ error: "Couldn't start checkout. Try again." }, { status: 502 });
   }
   const order = (await res.json()) as { id: string };

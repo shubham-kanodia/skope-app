@@ -31,6 +31,11 @@ export function LoginForm({
         setMessage(data.error ?? "Something went wrong. Try again.");
         return;
       }
+      // Test login signs in directly and returns where to go next.
+      if (data.redirect) {
+        window.location.href = data.redirect;
+        return;
+      }
       setState("sent");
       track("login_link_requested", { has_ref: !!refCode, is_invite: !!fixedEmail });
     } catch {
