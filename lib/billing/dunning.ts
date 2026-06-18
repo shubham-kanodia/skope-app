@@ -64,8 +64,8 @@ function buildEmail(level: Level, to: string, usage: UsageSummary) {
     return {
       to,
       subject: "Your Skope plan needs attention",
-      text: `Your trial or subscription has ended. Your consent banner stays live, but dashboard editing is paused until you pick a plan.\n\nChoose a plan: ${billing}`,
-      html: `<p>Your trial or subscription has ended. Your consent banner stays live, but dashboard editing is paused until you pick a plan.</p><p><a href="${billing}">Choose a plan</a></p>`,
+      text: `Your subscription has ended. Your consent banner stays live, but dashboard editing is paused until you pick a plan.\n\nChoose a plan: ${billing}`,
+      html: `<p>Your subscription has ended. Your consent banner stays live, but dashboard editing is paused until you pick a plan.</p><p><a href="${billing}">Choose a plan</a></p>`,
     };
   }
   if (level === "over100") {

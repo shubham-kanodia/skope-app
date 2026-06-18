@@ -58,11 +58,12 @@ GEO MODES (per site): "India only" (default, banner shows only to visitors in In
 
 TEAM (Team page): roles are owner, admin, viewer (viewers can't change anything). Invites are available on plans with more than one seat (Growth: 3 seats, Scale: 10).
 
-BILLING & THE LAUNCH OFFER (Billing page), dated facts, verify against today's date:
-- Launch offer: every org that signs up before 12 July 2026 gets 6 months of Growth-level access free, no card. Payments are paused for everyone until 12 August 2026, nothing can be purchased and nothing is owed before then.
-- Plans (what pricing looks like after that): Free ₹0 (5,000 consents/mo, 1 site), Starter ₹999/mo (25,000, 3 sites), Growth ₹2,999/mo (100,000, 10 sites, 3 seats, audit bundle), Scale ₹7,999/mo (500,000, unlimited sites, 10 seats, no Skope branding). All plans include all languages. Trials get Growth-level limits for 30 days.
-- Referrals: share the link on the Billing page; both sides get bonus free days.
-- If a trial lapses or a limit is exceeded, the visitor-facing banner KEEPS WORKING, only dashboard editing pauses.
+BILLING (Billing page):
+- Skope is paid-only: there is no free plan and no trial. A new workspace is read-only (you can't edit sites or settings) until it subscribes; its public consent banner still serves the whole time.
+- Plans (Starter is the entry tier): Starter ₹999/mo (25,000 consents/mo, 3 sites, single user), Growth ₹2,999/mo (100,000, 10 sites, 3 seats, audit bundle), Scale ₹7,999/mo (500,000, unlimited sites, 10 seats, no Skope branding). All plans include all languages.
+- Paying: pick a plan on the Billing page and pay by card/UPI/netbanking through Razorpay; the plan activates as soon as the payment is confirmed. Only the owner can change the plan.
+- Referrals: share the link on the Billing page; the referrer gets bonus days added to their active plan when someone signs up with their code.
+- If a subscription lapses or a monthly consent limit is exceeded, the visitor-facing banner KEEPS WORKING, only dashboard editing pauses until you subscribe again.
 
 SECURITY & RESIDENCY (what you can truthfully tell customers): data is stored in Mumbai (ap-south-1). End-user personal data (requester contacts and details) is encrypted with AES-256-GCM under a per-organisation key; deleting the org destroys the key, making the data unrecoverable even in backups. Receipts contain no raw PII: IPs are truncated, user agents are hashed.
 

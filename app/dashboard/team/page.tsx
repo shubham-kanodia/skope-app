@@ -9,7 +9,7 @@ import { TeamManager } from "./team-manager";
 export default async function TeamPage() {
   const session = await requireSession();
   const gate = await getOrgGate(session.orgId);
-  const tier = gate?.entitlement.tier ?? "free";
+  const tier = gate?.entitlement.tier ?? "starter";
 
   if (!planAllowsTeam(tier)) {
     return (

@@ -32,6 +32,7 @@ export interface AnalyticsEvents {
   policy_draft_saved: { translate_chars: number; translate_languages: number };
   policy_published: { version: number };
   begin_checkout: { currency: "INR"; value: number; plan: string };
+  purchase: { currency: "INR"; plan: string };
   plan_granted: { plan: string };
   data_extract_completed: { items_count: number; file_kb: number };
   data_extract_failed: { status: number; file_kb: number };

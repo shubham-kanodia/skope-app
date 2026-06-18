@@ -33,7 +33,7 @@ export function blockedReason(gate: OrgGate): string | null {
   if (gate.usage.overLimit) {
     return "You've hit this month's consent limit. Upgrade your plan to keep editing, your banner stays live.";
   }
-  return "Your trial has ended. Upgrade to keep editing, your banner stays live.";
+  return "Subscribe to keep editing, your banner stays live.";
 }
 
 /**

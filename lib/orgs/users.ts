@@ -6,7 +6,6 @@ import {
   generateReferralCode,
   applyReferralReward,
   recordReferral,
-  REFERRAL_REFEREE_BONUS_DAYS,
   REFERRAL_REFERRER_BONUS_DAYS,
 } from "@/lib/referrals";
 
@@ -80,20 +79,20 @@ export async function findOrCreateUserByEmail(
     const ent = newOrgEntitlement(Number(seqRows[0].n));
 
     // Referral: a valid code (not yet usable for self-referral, the new org
-    // doesn't exist) gives the new org bonus trial days and rewards the referrer.
+    // doesn't exist) records the link and rewards the referrer. There's no trial
+    // to extend for the new org, so the referee gets no day bonus.
     let referrerId: string | null = null;
     if (refCode) {
       const ref = await tx`select id from orgs where referral_code = ${refCode.trim().toLowerCase()} limit 1`;
       referrerId = (ref[0]?.id as string | undefined) ?? null;
     }
-    const trialEnds = referrerId
-      ? new Date(new Date(ent.trial_ends_at).getTime() + REFERRAL_REFEREE_BONUS_DAYS * 86_400_000)
-      : ent.trial_ends_at;
 
+    // plan stays the column default ('starter'); plan_active_until is in the past
+    // so the org is read-only ("inactive") until it subscribes.
     const orgRows = await tx`
-      insert into orgs (name, billing_email, trial_ends_at, is_founding_member, founding_number,
+      insert into orgs (name, billing_email, plan_active_until, is_founding_member, founding_number,
                         comp_until, referral_code, referred_by_org_id)
-      values (${defaultOrgName(email)}, ${email}, ${trialEnds},
+      values (${defaultOrgName(email)}, ${email}, ${ent.plan_active_until},
               ${ent.is_founding_member}, ${ent.founding_number}, ${ent.comp_until},
               ${generateReferralCode()}, ${referrerId})
       returning id`;

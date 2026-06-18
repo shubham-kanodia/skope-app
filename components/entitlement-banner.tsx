@@ -2,18 +2,16 @@ import type { Entitlement } from "@/lib/entitlement";
 import { ApertureMark } from "@/components/aperture/aperture";
 
 /**
- * The trial / founding-member status strip atop the dashboard content.
- * Amber for trial urgency, primary for the founding badge, neutral for free.
+ * The status strip atop the dashboard content. Primary for the founding badge,
+ * neutral for an inactive (read-only) org that needs to subscribe.
  */
 export function EntitlementBanner({ entitlement }: { entitlement: Entitlement }) {
   if (!entitlement.banner) return null;
 
-  const celebratory = entitlement.status === "founding" || entitlement.status === "launch";
+  const celebratory = entitlement.status === "founding";
   const tone = celebratory
     ? "border-primary/15 bg-primary/[0.04] text-ink"
-    : entitlement.status === "trial"
-      ? "border-amber/30 bg-amber/[0.07] text-ink"
-      : "border-hairline bg-surface-soft text-ink";
+    : "border-hairline bg-surface-soft text-ink";
 
   return (
     <div
@@ -25,7 +23,7 @@ export function EntitlementBanner({ entitlement }: { entitlement: Entitlement })
       </span>
       {!celebratory && (
         <a href="/dashboard/billing" className="font-medium text-primary hover:text-primary-active">
-          {entitlement.status === "free" ? "Upgrade" : "Add a plan"} →
+          Subscribe →
         </a>
       )}
     </div>
@@ -33,15 +31,8 @@ export function EntitlementBanner({ entitlement }: { entitlement: Entitlement })
 }
 
 function Icon({ status }: { status: Entitlement["status"] }) {
-  if (status === "founding" || status === "launch") {
+  if (status === "founding") {
     return <ApertureMark tone="light" size={16} open={0.55} />;
-  }
-  if (status === "trial") {
-    return (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" strokeWidth="2" aria-hidden>
-        <path d="M5 21V4M5 4h11l-2 4 2 4H5" />
-      </svg>
-    );
   }
   return null;
 }

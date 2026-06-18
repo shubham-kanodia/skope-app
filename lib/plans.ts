@@ -16,8 +16,8 @@ export interface PlanLimits {
   maxSites: number;
   /**
    * All tiers include every supported language. Regional-language notices may be
-   * a legal requirement under DPDP, so we never gate languages by plan, the free
-   * tier gets the full set too. Kept as a field for clarity (always true).
+   * a legal requirement under DPDP, so we never gate languages by plan. Kept as a
+   * field for clarity (always true).
    */
   allLanguages: boolean;
   /** Max total users in the org (owner + teammates). >1 means team invites. */
@@ -29,18 +29,17 @@ export interface PlanLimits {
 }
 
 export const PLAN_LIMITS: Record<OrgPlan, PlanLimits> = {
-  free: { label: "Free", priceInr: 0, consentsPerMonth: 5_000, maxSites: 1, allLanguages: true, teamSeats: 1, whiteLabel: false, auditExport: false },
   starter: { label: "Starter", priceInr: 999, consentsPerMonth: 25_000, maxSites: 3, allLanguages: true, teamSeats: 1, whiteLabel: false, auditExport: false },
   growth: { label: "Growth", priceInr: 2_999, consentsPerMonth: 100_000, maxSites: 10, allLanguages: true, teamSeats: 3, whiteLabel: false, auditExport: true },
   scale: { label: "Scale", priceInr: 7_999, consentsPerMonth: 500_000, maxSites: Number.POSITIVE_INFINITY, allLanguages: true, teamSeats: 10, whiteLabel: true, auditExport: true },
 };
 
-/** The order shown on the pricing page. */
-export const PLAN_ORDER: OrgPlan[] = ["free", "starter", "growth", "scale"];
+/** The order shown on the pricing page. Starter is the entry tier. */
+export const PLAN_ORDER: OrgPlan[] = ["starter", "growth", "scale"];
 export const PAID_PLANS: OrgPlan[] = ["starter", "growth", "scale"];
 
 export function getLimits(tier: OrgPlan): PlanLimits {
-  return PLAN_LIMITS[tier] ?? PLAN_LIMITS.free;
+  return PLAN_LIMITS[tier] ?? PLAN_LIMITS.starter;
 }
 
 /** Team invites are a growth+ feature (teamSeats > 1). */
@@ -54,5 +53,5 @@ export function isUnlimited(n: number): boolean {
 
 /** Compact INR like "₹2,999". */
 export function formatInr(n: number): string {
-  return n === 0 ? "Free" : `₹${n.toLocaleString("en-IN")}`;
+  return `₹${n.toLocaleString("en-IN")}`;
 }

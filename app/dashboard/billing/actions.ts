@@ -14,9 +14,9 @@ import type { OrgPlan } from "@/lib/entitlement";
 export async function grantPlan(plan: OrgPlan): Promise<{ ok?: true; error?: string }> {
   const session = await requireSession();
   if (session.role !== "owner") return { error: "Only the owner can change the plan." };
-  if (plan !== "free" && !PAID_PLANS.includes(plan)) return { error: "Unknown plan." };
+  if (!PAID_PLANS.includes(plan)) return { error: "Unknown plan." };
 
-  const activeUntil = plan === "free" ? null : new Date(Date.now() + 30 * 86_400_000);
+  const activeUntil = new Date(Date.now() + 30 * 86_400_000);
   await sql`update orgs set plan = ${plan}, plan_active_until = ${activeUntil} where id = ${session.orgId}`;
   revalidatePath("/dashboard/billing");
   revalidatePath("/dashboard");

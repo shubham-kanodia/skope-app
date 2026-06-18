@@ -1,6 +1,6 @@
 import { getSession } from "@/lib/auth/session";
 import { getLimits, PAID_PLANS } from "@/lib/plans";
-import { arePaymentsPaused, PAYMENTS_PAUSED_UNTIL, type OrgPlan } from "@/lib/entitlement";
+import type { OrgPlan } from "@/lib/entitlement";
 
 export const runtime = "nodejs";
 
@@ -8,20 +8,13 @@ export const runtime = "nodejs";
  * Start a Razorpay checkout for a plan. Stub-safe: when keys are absent it
  * returns { configured: false } so the UI can fall back (or owners can grant a
  * plan manually). With keys, it creates a Razorpay order and returns what the
- * client needs to open checkout; payment is confirmed via the webhook.
+ * client needs to open checkout; payment is confirmed by the verify route (and
+ * the webhook as a backstop).
  */
 export async function POST(request: Request) {
   const session = await getSession();
   if (!session) return Response.json({ error: "Sign in first." }, { status: 401 });
   if (session.role !== "owner") return Response.json({ error: "Only the owner can change the plan." }, { status: 403 });
-
-  if (arePaymentsPaused()) {
-    const when = new Intl.DateTimeFormat("en-IN", { dateStyle: "long" }).format(PAYMENTS_PAUSED_UNTIL);
-    return Response.json(
-      { error: `Skope is free for everyone right now. Payments open on ${when}, nothing to pay today.` },
-      { status: 409 },
-    );
-  }
 
   let body: { plan?: string };
   try {
